@@ -2,13 +2,13 @@
 	name = "Retrovirus"
 	max_stages = 4
 	spread_text = "Contact"
-	spread_flags = CONTACT_GENERAL
+	spread_flags = SPREAD_CONTACT_GENERAL
 	cure_text = "Rest or an injection of mutadone"
 	cure_chance = 6
 	agent = ""
 	viable_mobtypes = list(/mob/living/carbon/human)
 	desc = "A DNA-altering retrovirus that scrambles the structural and unique enzymes of a host constantly."
-	severity = DANGEROUS
+	severity = VIRUS_BIOHAZARD
 	permeability_mod = 0.4
 	stage_prob = 2
 	var/SE
@@ -26,43 +26,44 @@
 
 
 /datum/disease/dna_retrovirus/stage_act()
-	..()
+	if(!..())
+		return FALSE
 	switch(stage)
 		if(1)
 			if(restcure)
-				if(affected_mob.lying && prob(30))
-					to_chat(affected_mob, "<span class='notice'>You feel better.</span>")
+				if(IS_HORIZONTAL(affected_mob) && prob(30))
+					to_chat(affected_mob, SPAN_NOTICE("You feel better."))
 					cure()
 					return
 			if(prob(8))
-				to_chat(affected_mob, "<span class='danger'>Your head hurts.</span>")
+				to_chat(affected_mob, SPAN_DANGER("Your head hurts."))
 			if(prob(9))
 				to_chat(affected_mob, "You feel a tingling sensation in your chest.")
 			if(prob(9))
-				to_chat(affected_mob, "<span class='danger'>You feel angry.</span>")
+				to_chat(affected_mob, SPAN_DANGER("You feel angry."))
 		if(2)
 			if(restcure)
-				if(affected_mob.lying && prob(20))
-					to_chat(affected_mob, "<span class='notice'>You feel better.</span>")
+				if(IS_HORIZONTAL(affected_mob) && prob(20))
+					to_chat(affected_mob, SPAN_NOTICE("You feel better."))
 					cure()
 					return
 			if(prob(8))
-				to_chat(affected_mob, "<span class='danger'>Your skin feels loose.</span>")
+				to_chat(affected_mob, SPAN_DANGER("Your skin feels loose."))
 			if(prob(10))
 				to_chat(affected_mob, "You feel very strange.")
 			if(prob(4))
-				to_chat(affected_mob, "<span class='danger'>You feel a stabbing pain in your head!</span>")
-				affected_mob.Paralyse(2)
+				to_chat(affected_mob, SPAN_DANGER("You feel a stabbing pain in your head!"))
+				affected_mob.Paralyse(4 SECONDS)
 			if(prob(4))
-				to_chat(affected_mob, "<span class='danger'>Your stomach churns.</span>")
+				to_chat(affected_mob, SPAN_DANGER("Your stomach churns."))
 		if(3)
 			if(restcure)
-				if(affected_mob.lying && prob(20))
-					to_chat(affected_mob, "<span class='notice'>You feel better.</span>")
+				if(IS_HORIZONTAL(affected_mob) && prob(20))
+					to_chat(affected_mob, SPAN_NOTICE("You feel better."))
 					cure()
 					return
 			if(prob(10))
-				to_chat(affected_mob, "<span class='danger'>Your entire body vibrates.</span>")
+				to_chat(affected_mob, SPAN_DANGER("Your entire body vibrates."))
 
 			if(prob(35))
 				if(prob(50))
@@ -72,8 +73,8 @@
 
 		if(4)
 			if(restcure)
-				if(affected_mob.lying && prob(5))
-					to_chat(affected_mob, "<span class='notice'>You feel better.</span>")
+				if(IS_HORIZONTAL(affected_mob) && prob(5))
+					to_chat(affected_mob, SPAN_NOTICE("You feel better."))
 					cure()
 					return
 			if(prob(60))

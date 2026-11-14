@@ -29,8 +29,6 @@
 "ak" = (
 /obj/machinery/computer/communications,
 /obj/machinery/light/spot{
-	tag = "icon-tube1 (NORTH)";
-	icon_state = "tube1";
 	dir = 1
 	},
 /turf/simulated/floor/mineral/titanium/blue,
@@ -44,12 +42,8 @@
 /turf/simulated/floor/mineral/titanium/blue,
 /area/shuttle/escape)
 "an" = (
-/obj/machinery/computer/security{
-	network = list("SS13","Telecomms","Research Outpost","Mining Outpost")
-	},
+/obj/machinery/computer/security,
 /obj/machinery/light/spot{
-	tag = "icon-tube1 (NORTH)";
-	icon_state = "tube1";
 	dir = 1
 	},
 /turf/simulated/floor/mineral/titanium/blue,
@@ -75,13 +69,6 @@
 /obj/machinery/computer/robotics,
 /turf/simulated/floor/mineral/titanium/blue,
 /area/shuttle/escape)
-"aD" = (
-/obj/machinery/door/airlock/command/glass{
-	name = "Escape Shuttle Cockpit";
-	req_access_txt = "19"
-	},
-/turf/simulated/floor/mineral/titanium/blue,
-/area/shuttle/escape)
 "aF" = (
 /obj/structure/chair/comfy/shuttle,
 /turf/simulated/floor/mineral/plastitanium/red/brig,
@@ -91,8 +78,6 @@
 	pixel_y = 30
 	},
 /obj/machinery/light/spot{
-	tag = "icon-tube1 (NORTH)";
-	icon_state = "tube1";
 	dir = 1
 	},
 /obj/structure/chair/comfy/shuttle,
@@ -103,51 +88,43 @@
 /area/shuttle/escape)
 "aJ" = (
 /obj/machinery/atmospherics/unary/cryo_cell,
-/turf/simulated/floor/plasteel{
-	tag = "icon-whiteblue (NORTHWEST)";
-	icon_state = "whiteblue";
+/obj/effect/turf_decal/tiles/department/medical/side{
 	dir = 9
 	},
+/turf/simulated/floor/plasteel/white,
 /area/shuttle/escape)
 "aK" = (
 /obj/machinery/atmospherics/unary/portables_connector,
-/obj/machinery/portable_atmospherics/canister/oxygen{
+/obj/machinery/atmospherics/portable/canister/oxygen{
 	name = "Canister: \[O2] (CRYO)"
 	},
 /obj/item/wrench,
-/turf/simulated/floor/plasteel{
-	tag = "icon-whiteblue (NORTH)";
-	icon_state = "whiteblue";
+/obj/effect/turf_decal/tiles/department/medical/side{
 	dir = 1
 	},
+/turf/simulated/floor/plasteel/white,
 /area/shuttle/escape)
 "aL" = (
 /obj/machinery/status_display{
 	pixel_y = 30
 	},
 /obj/machinery/light/spot{
-	tag = "icon-tube1 (NORTH)";
-	icon_state = "tube1";
 	dir = 1
 	},
-/turf/simulated/floor/plasteel{
-	tag = "icon-whiteblue (NORTH)";
-	icon_state = "whiteblue";
+/obj/effect/turf_decal/tiles/department/medical/side{
 	dir = 1
 	},
+/turf/simulated/floor/plasteel/white,
 /area/shuttle/escape)
 "aM" = (
 /obj/machinery/sleeper,
-/turf/simulated/floor/plasteel{
-	tag = "icon-whiteblue (NORTHEAST)";
-	icon_state = "whiteblue";
+/obj/effect/turf_decal/tiles/department/medical/side{
 	dir = 5
 	},
+/turf/simulated/floor/plasteel/white,
 /area/shuttle/escape)
 "aN" = (
-/obj/structure/closet/walllocker/emerglocker{
-	pixel_x = -28
-	},
+/obj/structure/closet/walllocker/emerglocker/directional/west,
 /turf/simulated/floor/mineral/plastitanium/red/brig,
 /area/shuttle/escape)
 "aO" = (
@@ -157,61 +134,45 @@
 /obj/machinery/atmospherics/pipe/manifold/hidden{
 	dir = 8
 	},
-/turf/simulated/floor/plasteel{
-	tag = "icon-whiteblue (WEST)";
-	icon_state = "whiteblue";
+/obj/effect/turf_decal/tiles/department/medical/side{
 	dir = 8
 	},
+/turf/simulated/floor/plasteel/white,
 /area/shuttle/escape)
 "aR" = (
 /obj/machinery/atmospherics/pipe/simple/hidden{
-	dir = 9;
-	icon_state = "intact"
+	dir = 9
 	},
-/turf/simulated/floor/plasteel{
-	icon_state = "white"
-	},
+/turf/simulated/floor/plasteel/white,
 /area/shuttle/escape)
 "aS" = (
-/turf/simulated/floor/plasteel{
-	icon_state = "white"
-	},
+/turf/simulated/floor/plasteel/white,
 /area/shuttle/escape)
 "aT" = (
-/obj/machinery/vending/wallmed{
-	layer = 3.3;
-	name = "Emergency NanoMed";
-	pixel_x = 28;
-	pixel_y = 0;
-	req_access_txt = "0"
-	},
+/obj/machinery/economy/vending/wallmed/directional/east,
 /obj/machinery/sleeper,
-/turf/simulated/floor/plasteel{
-	dir = 4;
-	icon_state = "whiteblue";
-	tag = "icon-whitehall (WEST)"
+/obj/effect/turf_decal/tiles/department/medical/side{
+	dir = 4
 	},
+/turf/simulated/floor/plasteel/white,
 /area/shuttle/escape)
 "aU" = (
 /obj/machinery/atmospherics/pipe/simple/hidden,
-/turf/simulated/floor/plasteel{
-	tag = "icon-whiteblue (WEST)";
-	icon_state = "whiteblue";
+/obj/effect/turf_decal/tiles/department/medical/side{
 	dir = 8
 	},
+/turf/simulated/floor/plasteel/white,
 /area/shuttle/escape)
 "aV" = (
 /obj/item/radio/intercom{
 	dir = 4;
-	name = "station intercom (General)";
 	pixel_x = 28
 	},
 /obj/structure/bed/roller,
-/turf/simulated/floor/plasteel{
-	dir = 4;
-	icon_state = "whiteblue";
-	tag = "icon-whitehall (WEST)"
+/obj/effect/turf_decal/tiles/department/medical/side{
+	dir = 4
 	},
+/turf/simulated/floor/plasteel/white,
 /area/shuttle/escape)
 "aW" = (
 /obj/machinery/door/airlock/titanium{
@@ -232,11 +193,10 @@
 /obj/machinery/atmospherics/unary/thermomachine/freezer{
 	dir = 1
 	},
-/turf/simulated/floor/plasteel{
-	tag = "icon-whiteblue (SOUTHWEST)";
-	icon_state = "whiteblue";
+/obj/effect/turf_decal/tiles/department/medical/side{
 	dir = 10
 	},
+/turf/simulated/floor/plasteel/white,
 /area/shuttle/escape)
 "aZ" = (
 /obj/structure/table,
@@ -258,65 +218,30 @@
 	pixel_x = 2;
 	pixel_y = 3
 	},
-/obj/item/reagent_containers/glass/beaker/cryoxadone{
-	pixel_x = 0;
-	pixel_y = 0
-	},
-/turf/simulated/floor/plasteel{
-	dir = 2;
-	icon_state = "whiteblue";
-	tag = "icon-whitehall (WEST)"
-	},
+/obj/item/reagent_containers/glass/beaker/cryoxadone,
+/obj/effect/turf_decal/tiles/department/medical/side,
+/turf/simulated/floor/plasteel/white,
 /area/shuttle/escape)
 "ba" = (
-/turf/simulated/floor/plasteel{
-	dir = 2;
-	icon_state = "whiteblue";
-	tag = "icon-whitehall (WEST)"
-	},
+/obj/effect/turf_decal/tiles/department/medical/side,
+/turf/simulated/floor/plasteel/white,
 /area/shuttle/escape)
 "bb" = (
 /obj/machinery/light/spot{
-	tag = "icon-tube1 (EAST)";
-	icon_state = "tube1";
 	dir = 4
 	},
 /obj/structure/bed/roller,
-/turf/simulated/floor/plasteel{
-	tag = "icon-whiteblue (SOUTHEAST)";
-	icon_state = "whiteblue";
+/obj/effect/turf_decal/tiles/department/medical/side{
 	dir = 6
 	},
-/area/shuttle/escape)
-"bc" = (
-/obj/machinery/door/airlock/security/glass{
-	name = "Escape Shuttle Cell";
-	req_access_txt = "2"
-	},
-/turf/simulated/floor/plating,
+/turf/simulated/floor/plasteel/white,
 /area/shuttle/escape)
 "bd" = (
 /obj/structure/noticeboard,
 /turf/simulated/wall/mineral/titanium,
 /area/shuttle/escape)
-"bf" = (
-/obj/machinery/door/airlock/command/glass{
-	name = "Escape Shuttle Cockpit";
-	req_access_txt = "19"
-	},
-/turf/simulated/floor/plating,
-/area/shuttle/escape)
-"bg" = (
-/obj/machinery/door/airlock/medical/glass{
-	id_tag = "ShuttleMedbay";
-	name = "Shuttle Medbay";
-	req_access_txt = "5"
-	},
-/turf/simulated/floor/plating,
-/area/shuttle/escape)
 "bh" = (
 /obj/docking_port/mobile/emergency{
-	dir = 4;
 	dwidth = 11;
 	height = 13;
 	timid = 1;
@@ -331,20 +256,15 @@
 /turf/simulated/floor/plating,
 /area/shuttle/escape)
 "bi" = (
-/obj/structure/closet/walllocker/emerglocker{
-	pixel_x = 28
-	},
+/obj/structure/closet/walllocker/emerglocker/directional/east,
 /turf/simulated/floor/plating,
 /area/shuttle/escape)
 "bj" = (
 /obj/item/radio/intercom{
 	dir = 8;
-	name = "station intercom (General)";
 	pixel_x = -28
 	},
 /obj/machinery/light/spot{
-	tag = "icon-tube1 (WEST)";
-	icon_state = "tube1";
 	dir = 8
 	},
 /obj/structure/chair/comfy/shuttle{
@@ -366,8 +286,6 @@
 /area/shuttle/escape)
 "bm" = (
 /obj/machinery/light/spot{
-	tag = "icon-tube1 (EAST)";
-	icon_state = "tube1";
 	dir = 4
 	},
 /obj/structure/chair/comfy/shuttle{
@@ -377,8 +295,6 @@
 /area/shuttle/escape)
 "bn" = (
 /obj/machinery/light/spot{
-	tag = "icon-tube1 (WEST)";
-	icon_state = "tube1";
 	dir = 8
 	},
 /obj/structure/chair/comfy/shuttle{
@@ -387,7 +303,7 @@
 /turf/simulated/floor/plating,
 /area/shuttle/escape)
 "br" = (
-/mob/living/simple_animal/bot/secbot,
+/mob/living/basic/bot/secbot,
 /turf/simulated/floor/plating,
 /area/shuttle/escape)
 "bs" = (
@@ -424,11 +340,42 @@
 	name = "shuttle turret"
 	},
 /obj/machinery/light/spot{
-	tag = "icon-tube1 (NORTH)";
-	icon_state = "tube1";
 	dir = 1
 	},
 /turf/simulated/floor/plating/airless,
+/area/shuttle/escape)
+"iJ" = (
+/obj/machinery/door/airlock/medical/glass{
+	id_tag = "ShuttleMedbay";
+	name = "Shuttle Medbay";
+	dir = 4
+	},
+/obj/effect/mapping_helpers/airlock/access/all/medical/general,
+/turf/simulated/floor/plating,
+/area/shuttle/escape)
+"oH" = (
+/obj/machinery/door/airlock/command/glass{
+	name = "Escape Shuttle Cockpit";
+	dir = 4
+	},
+/obj/effect/mapping_helpers/airlock/access/all/command/general,
+/turf/simulated/floor/mineral/titanium/blue,
+/area/shuttle/escape)
+"oN" = (
+/obj/machinery/door/airlock/command/glass{
+	name = "Escape Shuttle Cockpit";
+	dir = 4
+	},
+/obj/effect/mapping_helpers/airlock/access/all/command/general,
+/turf/simulated/floor/plating,
+/area/shuttle/escape)
+"LF" = (
+/obj/machinery/door/airlock/security/glass{
+	name = "Escape Shuttle Cell";
+	dir = 4
+	},
+/obj/effect/mapping_helpers/airlock/access/all/security/doors,
+/turf/simulated/floor/plating,
 /area/shuttle/escape)
 
 (1,1,1) = {"
@@ -494,7 +441,7 @@ aG
 aO
 aO
 aO
-bc
+LF
 aI
 aI
 aI
@@ -593,12 +540,12 @@ ag
 am
 at
 at
-aD
+oH
 aI
 aI
 aI
 aI
-bf
+oN
 aI
 aI
 aI
@@ -702,7 +649,7 @@ aL
 aS
 aS
 ba
-bg
+iJ
 aI
 aI
 aI

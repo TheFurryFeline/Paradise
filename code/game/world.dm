@@ -1,23 +1,41 @@
-GLOBAL_LIST_INIT(map_transition_config, MAP_TRANSITION_CONFIG)
+GLOBAL_LIST_INIT(map_transition_config, list(CC_TRANSITION_CONFIG))
+
+#ifdef TEST_RUNNER
+GLOBAL_DATUM(test_runner, /datum/test_runner)
+#endif
 
 /world/New()
 	// IMPORTANT
 	// If you do any SQL operations inside this proc, they must ***NOT*** be ran async. Otherwise players can join mid query
 	// This is BAD.
 
-	// Right off the bat
-	enable_auxtools_debugger()
+
+	SSmetrics.world_init_time = REALTIMEOFDAY
 
 	//temporary file used to record errors with loading config and the database, moved to log directory once logging is set up
 	GLOB.config_error_log = GLOB.world_game_log = GLOB.world_runtime_log = GLOB.sql_log = "data/logs/config_error.log"
-	load_configuration()
+	GLOB.configuration.load_configuration() // Load up the base config.toml
+	// Load up overrides for this specific instance, based on port
+	// If this instance is listening on port 6666, the server will look for config/overrides_6666.toml
+	GLOB.configuration.load_overrides("config/overrides_[world.port].toml")
+
+	// Adds a hook for loading TM specific configs we can keep in repo.
+	GLOB.configuration.load_overrides("code/testmerge_config.toml")
+
+	#ifdef TEST_CONFIG_OVERRIDE
+	GLOB.configuration.load_overrides("config/tests/config_[TEST_CONFIG_OVERRIDE].toml")
+	#endif
 
 	// Right off the bat, load up the DB
 	SSdbcore.CheckSchemaVersion() // This doesnt just check the schema version, it also connects to the db! This needs to happen super early! I cannot stress this enough!
 	SSdbcore.SetRoundID() // Set the round ID here
+	#ifdef MULTIINSTANCE
+	SSinstancing.seed_data() // Set us up in the DB
+	#endif
 
 	// Setup all log paths and stamp them with startups, including round IDs
 	SetupLogs()
+	load_files() // Loads up the MOTD (Welcome message players see when joining the server), TOS and gamemode
 
 	// This needs to happen early, otherwise people can get a null species, nuking their character
 	makeDatumRefLists()
@@ -28,23 +46,17 @@ GLOBAL_LIST_INIT(map_transition_config, MAP_TRANSITION_CONFIG)
 	GLOB.revision_info.log_info()
 	load_admins(run_async = FALSE) // This better happen early on.
 
-	#ifdef UNIT_TESTS
-	log_world("Unit Tests Are Enabled!")
-	#endif
+	if(TgsAvailable())
+		world.log = file("[GLOB.log_directory]/dd.log") //not all runtimes trigger world/Error, so this is the only way to ensure we can see all of them.
 
-	if(!fexists("config/config.txt") || !fexists("config/game_options.txt"))
-		stack_trace("The game config files have not been properly set! Please copy ALL files from '/config/example' into the parent folder, '/config'.")
+	#ifdef TEST_RUNNER
+	log_world("Test runner enabled.")
+	#endif
 
 	if(byond_version < MIN_COMPILER_VERSION || byond_build < MIN_COMPILER_BUILD)
 		log_world("Your server's byond version does not meet the recommended requirements for this code. Please update BYOND")
 
-	if(config && config.server_name != null && config.server_suffix && world.port > 0)
-		// dumb and hardcoded but I don't care~
-		config.server_name += " #[(world.port % 1000) / 100]"
-
-	GLOB.timezoneOffset = text2num(time2text(0, "hh")) * 36000
-
-	startup_procs() // Call procs that need to occur on startup (Generate lists, load MOTD, etc)
+	GLOB.timezoneOffset = world.timezone * 36000
 
 	update_status()
 
@@ -55,23 +67,15 @@ GLOBAL_LIST_INIT(map_transition_config, MAP_TRANSITION_CONFIG)
 	Master.Initialize(10, FALSE, TRUE)
 
 
-	#ifdef UNIT_TESTS
-	HandleTestRun()
+	#ifdef TEST_RUNNER
+	GLOB.test_runner = new
+	GLOB.test_runner.Start()
 	#endif
 
 
 /world/proc/InitTGS()
 	TgsNew(new /datum/tgs_event_handler/impl, TGS_SECURITY_TRUSTED) // creates a new TGS object
 	GLOB.revision_info.load_tgs_info() // Loads git and TM info from TGS itself
-
-// This is basically a replacement for hook/startup. Please dont shove random bullshit here
-// If it doesnt need to happen IMMEDIATELY on world load, make a subsystem for it
-/world/proc/startup_procs()
-	LoadBans() // Load up who is banned and who isnt. DONT PUT THIS IN A SUBSYSTEM IT WILL TAKE TOO LONG TO BE CALLED
-	jobban_loadbanfile() // Load up jobbans. Again, DO NOT PUT THIS IN A SUBSYSTEM IT WILL TAKE TOO LONG TO BE CALLED
-	load_motd() // Loads up the MOTD (Welcome message players see when joining the server)
-	load_mode() // Loads up the gamemode
-	investigate_reset() // This is part of the admin investigate system. PLEASE DONT SS THIS EITHER
 
 /// List of all world topic spam prevention handlers. See code/modules/world_topic/_spam_prevention_handler.dm
 GLOBAL_LIST_EMPTY(world_topic_spam_prevention_handlers)
@@ -83,15 +87,16 @@ GLOBAL_LIST_EMPTY(world_topic_handlers)
 	TGS_TOPIC
 	log_misc("WORLD/TOPIC: \"[T]\", from:[addr], master:[master], key:[key]")
 
-	// Handle spam prevention
-	if(!GLOB.world_topic_spam_prevention_handlers[address])
-		GLOB.world_topic_spam_prevention_handlers[address] = new /datum/world_topic_spam_prevention_handler
+	// Handle spam prevention, if their IP isnt in the whitelist
+	if(!(addr in GLOB.configuration.system.topic_ip_ratelimit_bypass))
+		if(!GLOB.world_topic_spam_prevention_handlers[addr])
+			GLOB.world_topic_spam_prevention_handlers[addr] = new /datum/world_topic_spam_prevention_handler(addr)
 
-	var/datum/world_topic_spam_prevention_handler/sph = GLOB.world_topic_spam_prevention_handlers[address]
+		var/datum/world_topic_spam_prevention_handler/sph = GLOB.world_topic_spam_prevention_handlers[addr]
 
-	// Lock the user out and cancel their topic if needed
-	if(sph.check_lockout())
-		return
+		// Lock the user out and cancel their topic if needed
+		if(sph.check_lockout())
+			return
 
 	var/list/input = params2list(T)
 
@@ -119,13 +124,13 @@ GLOBAL_LIST_EMPTY(world_topic_handlers)
 				return
 			message_admins("[key_name_admin(usr)] has requested an immediate world restart via client side debugging tools")
 			log_admin("[key_name(usr)] has requested an immediate world restart via client side debugging tools")
-			to_chat(world, "<span class='boldannounce'>Rebooting world immediately due to host request</span>")
-		rustg_log_close_all() // Past this point, no logging procs can be used, at risk of data loss.
+			to_chat(world, SPAN_BOLDANNOUNCEOOC("Rebooting world immediately due to host request"))
+		rustlibs_log_close_all() // Past this point, no logging procs can be used, at risk of data loss.
 		// Now handle a reboot
-		if(config && config.shutdown_on_reboot)
+		if(GLOB.configuration.system.shutdown_on_reboot)
 			sleep(0)
-			if(GLOB.shutdown_shell_command)
-				shell(GLOB.shutdown_shell_command)
+			if(GLOB.configuration.system.shutdown_shell_command)
+				shell(GLOB.configuration.system.shutdown_shell_command)
 			del(world)
 			TgsEndProcess() // We want to shutdown on reboot. That means kill our TGS process "gracefully", instead of the watchdog crying
 			return
@@ -137,30 +142,44 @@ GLOBAL_LIST_EMPTY(world_topic_handlers)
 	Master.Shutdown() // Shutdown subsystems
 
 	// If we were running unit tests, finish that run
-	#ifdef UNIT_TESTS
-	FinishTestRun()
+	#ifdef TEST_RUNNER
+	GLOB.test_runner.Finalize()
 	return
 	#endif
 
-	// If we had an update or pending TM, set a 60 second timeout
-	var/secs_before_auto_reconnect = 10
-	if(GLOB.pending_server_update)
-		secs_before_auto_reconnect = 60
-		to_chat(world, "<span class='boldannounce'>Reboot will take a little longer, due to pending updates.</span>")
+	// Send the stats URL if applicable
+	if(GLOB.configuration.url.round_stats_url && GLOB.round_id)
+		var/stats_link = "[GLOB.configuration.url.round_stats_url][GLOB.round_id]"
+		to_chat(world, SPAN_NOTICE("Stats for this round can be viewed at <a href=\"[stats_link]\">[stats_link]</a>"))
+
+	// If the server has been gracefully shutdown in TGS, have a 60 seconds grace period for SQL updates and stuff
+	if(GLOB.slower_restart)
+		server_announce_global("Reboot will take a little longer due to pending backend changes.")
 
 	// Send the reboot banner to all players
 	for(var/client/C in GLOB.clients)
-		C << output(list2params(list(secs_before_auto_reconnect)), "browseroutput:reboot")
-		if(config.server) // If you set a server location in config.txt, it sends you there instead of trying to reconnect to the same world address. -- NeoFite
-			C << link("byond://[config.server]")
+		C?.tgui_panel?.send_roundrestart()
+		#ifdef SERVERREGIONS
+		if(C.prefs.server_region)
+			// Keep them on the same relay
+			C << link(GLOB.configuration.system.region_map[C.prefs.server_region])
+		else
+			// Use the default
+			if(GLOB.configuration.url.server_url) // If you set a server location in config.txt, it sends you there instead of trying to reconnect to the same world address. -- NeoFite
+				C << link("byond://[GLOB.configuration.url.server_url]")
+		#else
+		// Use the default
+		if(GLOB.configuration.url.server_url) // If you set a server location in config.txt, it sends you there instead of trying to reconnect to the same world address. -- NeoFite
+			C << link("byond://[GLOB.configuration.url.server_url]")
+		#endif
 
 	// And begin the real shutdown
-	rustg_log_close_all() // Past this point, no logging procs can be used, at risk of data loss.
-	if(config && config.shutdown_on_reboot)
+	rustlibs_log_close_all() // Past this point, no logging procs can be used, at risk of data loss.
+	if(GLOB.configuration.system.shutdown_on_reboot)
 		sleep(0)
-		if(GLOB.shutdown_shell_command)
-			shell(GLOB.shutdown_shell_command)
-		rustg_log_close_all() // Past this point, no logging procs can be used, at risk of data loss.
+		if(GLOB.configuration.system.shutdown_shell_command)
+			shell(GLOB.configuration.system.shutdown_shell_command)
+		rustlibs_log_close_all() // Past this point, no logging procs can be used, at risk of data loss.
 		del(world)
 		TgsEndProcess() // We want to shutdown on reboot. That means kill our TGS process "gracefully", instead of the watchdog crying
 		return
@@ -170,7 +189,7 @@ GLOBAL_LIST_EMPTY(world_topic_handlers)
 
 /world/proc/load_mode()
 	var/list/Lines = file2list("data/mode.txt")
-	if(Lines.len)
+	if(length(Lines))
 		if(Lines[1])
 			GLOB.master_mode = Lines[1]
 			log_game("Saved mode is '[GLOB.master_mode]'")
@@ -180,57 +199,51 @@ GLOBAL_LIST_EMPTY(world_topic_handlers)
 	fdel(F)
 	F << the_mode
 
-/world/proc/load_motd()
+/world/proc/load_files()
 	GLOB.join_motd = file2text("config/motd.txt")
 	GLOB.join_tos = file2text("config/tos.txt")
-
-/proc/load_configuration()
-	config = new /datum/configuration()
-	config.load("config/config.txt")
-	config.load("config/game_options.txt","game_options")
-	config.loadsql("config/dbconfig.txt")
-	config.loadoverflowwhitelist("config/ofwhitelist.txt")
-	// apply some settings from config..
+	load_mode()
 
 /world/proc/update_status()
 	status = get_status_text()
 
-/proc/get_world_status_text()
-	return world.get_status_text()
-
 /world/proc/get_status_text()
 	var/s = ""
 
-	if(config && config.server_name)
-		s += "<b>[config.server_name]</b> &#8212; "
-	s += "<b>[station_name()]</b> "
-	if(config && config.githuburl)
-		s+= "([GLOB.game_version])"
+	if(GLOB.configuration.general.server_name)
+		s += "<b>[GLOB.configuration.general.server_name]</b>] &#8212; "
 
-	if(config && config.server_tag_line)
-		s += "<br>[config.server_tag_line]"
+		s += "<b>[station_name()]</b>"
+	else // else so it neatly closes the byond hub initial square bracket even without a server name
+		s += "<b>[station_name()]</b>]"
+
+	if(GLOB.configuration.url.discord_url)
+		s += " (<a href=\"[GLOB.configuration.url.discord_url]\">Discord</a>)"
+
+	if(GLOB.configuration.general.server_tag_line)
+		s += "<br>[GLOB.configuration.general.server_tag_line]"
 
 	if(SSticker && ROUND_TIME > 0)
-		s += "<br>[round(ROUND_TIME / 36000)]:[add_zero(num2text(ROUND_TIME / 600 % 60), 2)], " + capitalize(get_security_level())
+		s += "<br>[round(ROUND_TIME / 36000)]:[add_zero(num2text(ROUND_TIME / 600 % 60), 2)], [capitalize(SSsecurity_level.get_current_level_as_text())]"
 	else
 		s += "<br><b>STARTING</b>"
 
 	s += "<br>"
+
+	s += "\["
+
 	var/list/features = list()
 
 	if(!GLOB.enter_allowed)
 		features += "closed"
 
-	if(config && config.server_extra_features)
-		features += config.server_extra_features
+	if(GLOB.configuration.general.server_features)
+		features += GLOB.configuration.general.server_features
 
-	if(config && config.allow_vote_mode)
-		features += "vote"
+	if(GLOB.configuration.url.wiki_url)
+		features += "<a href=\"[GLOB.configuration.url.wiki_url]\">Wiki</a>"
 
-	if(config && config.wikiurl)
-		features += "<a href=\"[config.wikiurl]\">Wiki</a>"
-
-	if(GLOB.abandon_allowed)
+	if(GLOB.configuration.general.respawn_enabled)
 		features += "respawn"
 
 	if(features)
@@ -247,10 +260,10 @@ GLOBAL_LIST_EMPTY(world_topic_handlers)
 	GLOB.world_href_log = "[GLOB.log_directory]/hrefs.log"
 	GLOB.world_runtime_log = "[GLOB.log_directory]/runtime.log"
 	GLOB.world_qdel_log = "[GLOB.log_directory]/qdel.log"
-	GLOB.world_asset_log = "[GLOB.log_directory]/asset.log"
 	GLOB.tgui_log = "[GLOB.log_directory]/tgui.log"
 	GLOB.http_log = "[GLOB.log_directory]/http.log"
 	GLOB.sql_log = "[GLOB.log_directory]/sql.log"
+	GLOB.chat_debug_log = "[GLOB.log_directory]/chat_debug.log"
 	start_log(GLOB.world_game_log)
 	start_log(GLOB.world_href_log)
 	start_log(GLOB.world_runtime_log)
@@ -258,6 +271,12 @@ GLOBAL_LIST_EMPTY(world_topic_handlers)
 	start_log(GLOB.tgui_log)
 	start_log(GLOB.http_log)
 	start_log(GLOB.sql_log)
+	start_log(GLOB.chat_debug_log)
+
+	#ifdef REFERENCE_TRACKING
+	GLOB.gc_log = "[GLOB.log_directory]/gc_debug.log"
+	start_log(GLOB.gc_log)
+	#endif
 
 	// This log follows a special format and this path should NOT be used for anything else
 	GLOB.runtime_summary_log = "data/logs/runtime_summary.log"
@@ -276,6 +295,13 @@ GLOBAL_LIST_EMPTY(world_topic_handlers)
 	F << GLOB.log_directory
 
 /world/Del()
-	rustg_close_async_http_client() // Close the HTTP client. If you dont do this, youll get phantom threads which can crash DD from memory access violations
+	rustlibs_http_shutdown_client() // Close the HTTP client. If you dont do this, youll get phantom threads which can crash DD from memory access violations
 	disable_auxtools_debugger() // Disables the debugger if running. See above comment
+
+	if(SSredis.connected)
+		rustlibs_redis_disconnect() // Disconnects the redis connection. See above.
+
+	#ifdef ENABLE_BYOND_TRACY
+	CALL_EXT("prof.dll", "destroy")() // Setup Tracy integration
+	#endif
 	..()

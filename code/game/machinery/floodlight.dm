@@ -1,23 +1,22 @@
 /obj/machinery/floodlight
 	name = "emergency floodlight"
+	desc = "An artificial sun, except a lot smaller and a lot less powerful."
 	icon = 'icons/obj/machines/floodlight.dmi'
 	icon_state = "flood00"
-	anchored = FALSE
 	density = TRUE
 	max_integrity = 100
 	integrity_failure = 80
-	light_power = 20
+	light_power = 10
 	var/on = FALSE
 	var/obj/item/stock_parts/cell/high/cell = null
-	var/use = 5
+	var/use = 30
 	var/unlocked = FALSE
-	var/open = FALSE
 	var/brightness_on = 14
 
 /obj/machinery/floodlight/get_cell()
 	return cell
 
-/obj/machinery/floodlight/Initialize()
+/obj/machinery/floodlight/Initialize(mapload)
 	. = ..()
 	cell = new(src)
 	mapVarInit()
@@ -26,28 +25,22 @@
 	QDEL_NULL(cell)
 	return ..()
 
-/obj/machinery/floodlight/proc/updateicon()
-	icon_state = "flood[open ? "o" : ""][open && cell ? "b" : ""]0[on]"
+/obj/machinery/floodlight/update_icon_state()
+	icon_state = "flood[panel_open ? "o" : ""][panel_open && cell ? "b" : ""]0[on]"
 
 /obj/machinery/floodlight/process()
-	if(!cell && on)
-		on = FALSE
-		visible_message("<span class='warning'>[src] shuts down due to lack of power!</span>")
-		update_icon()
-		set_light(0)
 	if(on)
-		cell.charge -= use
-		if(cell.charge <= 0)
+		if(cell && !cell.use(use))
 			on = FALSE
-			updateicon()
+			update_icon(UPDATE_ICON_STATE)
 			set_light(0)
-			visible_message("<span class='warning'>[src] shuts down due to lack of power!</span>")
+			visible_message(SPAN_WARNING("[src] shuts down due to lack of power!"))
 
 /obj/machinery/floodlight/attack_ai()
 	return
 
 /obj/machinery/floodlight/attack_hand(mob/user as mob)
-	if(open && cell)
+	if(panel_open && cell)
 		if(ishuman(user))
 			if(!user.get_active_hand())
 				user.put_in_hands(cell)
@@ -55,31 +48,36 @@
 			cell.loc = loc
 
 		cell.add_fingerprint(user)
-		cell.update_icon()
+		cell.update_icon(UPDATE_ICON_STATE)
 
 		cell = null
-		to_chat(user, "You remove the power cell.")
+		to_chat(user, SPAN_WARNING("You remove the power cell."))
 		if(on)
 			on = FALSE
-			visible_message("<span class='warning'>[src] shuts down due to lack of power!</span>")
+			visible_message(SPAN_WARNING("[src] shuts down due to lack of power!"))
 			set_light(0)
-		updateicon()
+		update_icon(UPDATE_ICON_STATE)
 		return
 
 	if(on)
 		on = FALSE
-		to_chat(user, "<span class='notice'>You turn off the light.</span>")
+		to_chat(user, SPAN_NOTICE("You turn off the light."))
 		set_light(0)
 	else
 		if(!cell)
+			to_chat(user, SPAN_WARNING("You try to turn on [src] but nothing happens! Seems like it <b>lacks a power cell</b>."))
 			return
 		if(cell.charge <= 0)
+			to_chat(user, SPAN_WARNING("[src] hardly glows at all! Seems like the <b>power cell is empty</b>."))
+			return
+		if(!anchored)
+			to_chat(user, SPAN_WARNING("[src] must be anchored first!"))
 			return
 		on = TRUE
-		to_chat(user, "<span class='notice'>You turn on the light.</span>")
+		to_chat(user, SPAN_NOTICE("You turn on the light."))
 		set_light(brightness_on)
 
-	updateicon()
+	update_icon(UPDATE_ICON_STATE)
 
 /obj/machinery/floodlight/proc/mapVarInit()
 	if(on)
@@ -88,62 +86,88 @@
 		if(cell.charge <= 0)
 			return
 		set_light(brightness_on)
-		updateicon()
+		update_icon(UPDATE_ICON_STATE)
 
-/obj/machinery/floodlight/attackby(obj/item/W as obj, mob/user as mob, params)
-	if(istype(W, /obj/item/wrench))
-		if(!anchored && !isinspace())
-			playsound(loc, W.usesound, 50, 1)
-			user.visible_message( \
-				"[user] tightens \the [src]'s casters.", \
-				"<span class='notice'> You have tightened \the [src]'s casters.</span>", \
-				"You hear ratchet.")
-			anchored = TRUE
-		else if(anchored)
-			playsound(loc, W.usesound, 50, 1)
-			user.visible_message( \
-				"[user] loosens \the [src]'s casters.", \
-				"<span class='notice'> You have loosened \the [src]'s casters.</span>", \
-				"You hear ratchet.")
-			anchored = FALSE
-		updateicon()
-		return
-	if(istype(W, /obj/item/screwdriver))
-		if(!open)
-			if(unlocked)
-				unlocked = FALSE
-				to_chat(user, "You screw the battery panel in place.")
-			else
-				unlocked = TRUE
-				to_chat(user, "You unscrew the battery panel.")
-		updateicon()
-		return
-	if(istype(W, /obj/item/crowbar))
-		if(unlocked)
-			if(open)
-				open = FALSE
-				overlays = null
-				to_chat(user, "You crowbar the battery panel in place.")
-			else
-				if(unlocked)
-					open = TRUE
-					to_chat(user, "You remove the battery panel.")
-		updateicon()
-		return
-	if(istype(W, /obj/item/stock_parts/cell))
-		if(open)
+/obj/machinery/floodlight/item_interaction(mob/living/user, obj/item/used, list/modifiers)
+	if(istype(used, /obj/item/stock_parts/cell))
+		if(panel_open)
 			if(cell)
-				to_chat(user, "There is a power cell already installed.")
+				to_chat(user, SPAN_WARNING("There is a power cell already installed."))
 			else
+				playsound(loc, used.usesound, 50, TRUE)
 				user.drop_item()
-				W.loc = src
-				cell = W
-				to_chat(user, "You insert the power cell.")
-		updateicon()
-		return
+				used.loc = src
+				cell = used
+				to_chat(user, SPAN_NOTICE("You insert the power cell."))
+
+		update_icon(UPDATE_ICON_STATE)
+		return ITEM_INTERACT_COMPLETE
+
 	return ..()
 
-/obj/machinery/floodlight/extinguish_light()
-	on = 0
+/obj/machinery/floodlight/screwdriver_act(mob/living/user, obj/item/I)
+	if(panel_open)
+		to_chat(user, SPAN_WARNING("The screws can't reach while its open."))
+		return TRUE
+
+	if(!I.use_tool(src, user, volume = I.tool_volume))
+		return
+
+	if(panel_open)
+		return
+
+	if(unlocked)
+		to_chat(user, SPAN_NOTICE("You screw the battery panel in place."))
+	else
+		to_chat(user, SPAN_NOTICE("You unscrew the battery panel."))
+	unlocked = !unlocked
+	update_icon(UPDATE_ICON_STATE)
+	return TRUE
+
+/obj/machinery/floodlight/crowbar_act(mob/living/user, obj/item/I)
+	if(!unlocked)
+		to_chat(user, SPAN_NOTICE("The cover is screwed tightly down."))
+		return TRUE
+
+	if(!I.use_tool(src, user, volume = I.tool_volume))
+		return
+
+	if(panel_open)
+		to_chat(user, SPAN_NOTICE("You pry the panel closed."))
+	else
+		to_chat(user, SPAN_NOTICE("You pry the panel open."))
+	panel_open = !panel_open
+	update_icon(UPDATE_ICON_STATE)
+	return TRUE
+
+/obj/machinery/floodlight/wrench_act(mob/living/user, obj/item/I)
+	. = TRUE
+	if(!I.tool_use_check(user, 0))
+		return
+	if(anchored)
+		extinguish_light()
+	default_unfasten_wrench(user, I)
+
+/obj/machinery/floodlight/extinguish_light(force = FALSE)
+	on = FALSE
 	set_light(0)
-	update_icon()
+	update_icon(UPDATE_ICON_STATE)
+
+/obj/machinery/floodlight/examine(mob/user)
+	. = ..()
+	if(!unlocked)
+		. +=SPAN_NOTICE("The panel is <b>screwed</b> shut.")
+	else
+		if(panel_open)
+			. +=SPAN_NOTICE("The panel is <b>pried</b> open, looks like you could fit a cell in there.")
+		else
+			. +=SPAN_NOTICE("The panel looks like it could be <b>pried</b> open, or <b>screwed</b> shut.")
+
+/obj/machinery/floodlight/anchored
+	anchored = TRUE
+
+/obj/machinery/floodlight/anchored/darker_on
+	brightness_on = 4
+	light_power = 5
+	light_range = 5
+	on = TRUE

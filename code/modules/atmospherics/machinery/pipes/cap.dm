@@ -1,13 +1,11 @@
 /obj/machinery/atmospherics/pipe/cap
 	name = "pipe endcap"
-	desc = "An endcap for pipes"
+	desc = "An endcap for pipes."
 	icon = 'icons/atmos/pipes.dmi'
 	icon_state = "cap"
-	level = 2
 
 	volume = 35
 
-	dir = SOUTH
 	initialize_directions = SOUTH
 
 	var/obj/machinery/atmospherics/node
@@ -16,8 +14,12 @@
 	..()
 	initialize_directions = dir
 
+/obj/machinery/atmospherics/pipe/cap/examine(mob/user)
+	. = ..()
+	. += SPAN_NOTICE("Largely cosmetic as pipes automatically seal themselves off from leaking gases if not connected to another pipe. Will prevent a nasty ventcrawler from paying you a visit however.")
+
 /obj/machinery/atmospherics/pipe/cap/hide(i)
-	if(level == 1 && istype(loc, /turf/simulated))
+	if(level == 1 && issimulatedturf(loc))
 		invisibility = i ? INVISIBILITY_MAXIMUM : 0
 	update_icon()
 
@@ -53,16 +55,10 @@
 	if(node)
 		node.update_underlays()
 
-/obj/machinery/atmospherics/pipe/cap/update_icon(safety = 0)
-	..()
-
-	if(!check_icon_cache())
-		return
-
+/obj/machinery/atmospherics/pipe/cap/update_overlays()
+	. = ..()
 	alpha = 255
-
-	overlays.Cut()
-	overlays += SSair.icon_manager.get_atmos_icon("pipe", , pipe_color, "cap" + icon_connect_type)
+	. += GLOB.pipe_icon_manager.get_atmos_icon("pipe", null, pipe_color, "cap" + icon_connect_type)
 
 /obj/machinery/atmospherics/pipe/cap/atmos_init()
 	..()
@@ -76,51 +72,55 @@
 				break
 
 	var/turf/T = get_turf(src)			// hide if turf is not intact
-	if(!istype(T)) return
+	if(!istype(T) || T.transparent_floor)
+		return
 	hide(T.intact)
 	update_icon()
 
 /obj/machinery/atmospherics/pipe/cap/visible
-	level = 2
-	icon_state = "cap"
+	layer = GAS_PIPE_VISIBLE_LAYER
 
 /obj/machinery/atmospherics/pipe/cap/visible/scrubbers
 	name = "scrubbers pipe endcap"
-	desc = "An endcap for scrubbers pipes"
+	desc = "An endcap for scrubbers pipes."
 	icon_state = "cap-scrubbers"
-	connect_types = list(3)
-	layer = 2.38
+	connect_types = list(CONNECT_TYPE_SCRUBBER)
+	layer = GAS_PIPE_VISIBLE_LAYER + GAS_PIPE_SCRUB_OFFSET
+	layer_offset = GAS_PIPE_SCRUB_OFFSET
 	icon_connect_type = "-scrubbers"
 	color = PIPE_COLOR_RED
 
 /obj/machinery/atmospherics/pipe/cap/visible/supply
 	name = "supply pipe endcap"
-	desc = "An endcap for supply pipes"
+	desc = "An endcap for supply pipes."
 	icon_state = "cap-supply"
-	connect_types = list(2)
-	layer = 2.39
+	connect_types = list(CONNECT_TYPE_SUPPLY)
+	layer = GAS_PIPE_VISIBLE_LAYER + GAS_PIPE_SUPPLY_OFFSET
+	layer_offset = GAS_PIPE_SUPPLY_OFFSET
 	icon_connect_type = "-supply"
 	color = PIPE_COLOR_BLUE
 
 /obj/machinery/atmospherics/pipe/cap/hidden
 	level = 1
-	icon_state = "cap"
 	alpha = 128
+	plane = FLOOR_PLANE
 
 /obj/machinery/atmospherics/pipe/cap/hidden/scrubbers
 	name = "scrubbers pipe endcap"
-	desc = "An endcap for scrubbers pipes"
+	desc = "An endcap for scrubbers pipes."
 	icon_state = "cap-scrubbers"
-	connect_types = list(3)
-	layer = 2.38
+	connect_types = list(CONNECT_TYPE_SCRUBBER)
+	layer = GAS_PIPE_HIDDEN_LAYER + GAS_PIPE_SCRUB_OFFSET
+	layer_offset = GAS_PIPE_SCRUB_OFFSET
 	icon_connect_type = "-scrubbers"
 	color = PIPE_COLOR_RED
 
 /obj/machinery/atmospherics/pipe/cap/hidden/supply
 	name = "supply pipe endcap"
-	desc = "An endcap for supply pipes"
+	desc = "An endcap for supply pipes."
 	icon_state = "cap-supply"
-	connect_types = list(2)
-	layer = 2.39
+	connect_types = list(CONNECT_TYPE_SUPPLY)
+	layer = GAS_PIPE_HIDDEN_LAYER + GAS_PIPE_SUPPLY_OFFSET
+	layer_offset = GAS_PIPE_SUPPLY_OFFSET
 	icon_connect_type = "-supply"
 	color = PIPE_COLOR_BLUE

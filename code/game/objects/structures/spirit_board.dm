@@ -3,8 +3,7 @@
 	desc = "A wooden board with letters etched into it, used in seances."
 	icon = 'icons/obj/objects.dmi'
 	icon_state = "spirit_board"
-	density = 1
-	anchored = 0
+	density = TRUE
 	var/used = FALSE
 	var/cooldown = 0
 	var/planchette = "A"
@@ -12,7 +11,7 @@
 
 /obj/structure/spirit_board/examine(mob/user)
 	. = ..()
-	. += "[initial(desc)] The planchette is sitting at \"[planchette]\"."
+	. += "The planchette is sitting at \"[planchette]\"."
 
 /obj/structure/spirit_board/attack_hand(mob/user as mob)
 	if(..())
@@ -40,7 +39,7 @@
 	var/turf/T = loc
 	sleep(rand(20,30))
 	if(T == loc)
-		visible_message("<span class='notice'>The planchette slowly moves... and stops at the letter \"[planchette]\".</span>")
+		visible_message(SPAN_NOTICE("The planchette slowly moves... and stops at the letter \"[planchette]\"."))
 
 
 /obj/structure/spirit_board/proc/spirit_board_checks(mob/M)
@@ -61,7 +60,7 @@
 		light_amount = 10
 
 	if(light_amount > 2)
-		to_chat(M, "<span class='warning'>It's too bright here to use [src.name]!</span>")
+		to_chat(M, SPAN_WARNING("It's too bright here to use [src.name]!"))
 		return 0
 
 	//mobs in range check
@@ -69,12 +68,16 @@
 	for(var/mob/living/L in orange(1,src))
 		if(L.ckey && L.client)
 			if((world.time - L.client.inactivity) < (world.time - 300) || L.stat != CONSCIOUS || L.restrained())//no playing with braindeads or corpses or handcuffed dudes.
-				to_chat(M, "<span class='warning'>[L] doesn't seem to be paying attention...</span>")
+				to_chat(M, SPAN_WARNING("[L] doesn't seem to be paying attention..."))
 			else
 				users_in_range++
 
 	if(users_in_range < 2)
-		to_chat(M, "<span class='warning'>There aren't enough people to use the [src.name]!</span>")
+		to_chat(M, SPAN_WARNING("There aren't enough people to use [src]!"))
 		return 0
 
 	return 1
+
+/obj/structure/spirit_board/wrench_act(mob/living/user, obj/item/I)
+	. = TRUE
+	default_unfasten_wrench(user, I, time = 4 SECONDS)

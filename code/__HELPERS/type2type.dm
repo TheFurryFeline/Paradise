@@ -1,63 +1,11 @@
 /*
  * Holds procs designed to change one type of value, into another.
  * Contains:
- *			hex2num & num2hex
  *			file2list
  *			angle2dir
  *			angle2text
  *			worldtime2text
  */
-
-//Returns an integer given a hex input
-/proc/hex2num(hex)
-	if(!(istext(hex)))
-		return
-
-	var/num = 0
-	var/power = 0
-	var/i = null
-	i = length(hex)
-	while(i > 0)
-		var/char = copytext(hex, i, i + 1)
-		switch(char)
-			if("0")
-				//Apparently, switch works with empty statements, yay! If that doesn't work, blame me, though. -- Urist
-			if("9", "8", "7", "6", "5", "4", "3", "2", "1")
-				num += text2num(char) * 16 ** power
-			if("a", "A")
-				num += 16 ** power * 10
-			if("b", "B")
-				num += 16 ** power * 11
-			if("c", "C")
-				num += 16 ** power * 12
-			if("d", "D")
-				num += 16 ** power * 13
-			if("e", "E")
-				num += 16 ** power * 14
-			if("f", "F")
-				num += 16 ** power * 15
-			else
-				return
-		power++
-		i--
-	return num
-
-//Returns the hex value of a number given a value assumed to be a base-ten value
-/proc/num2hex(num, placeholder)
-	if(!isnum(num)) return
-	if(placeholder == null) placeholder = 2
-
-	var/hex = ""
-	while(num)
-		var/val = num % 16
-		num = round(num / 16)
-
-		if(val > 9)
-			val = ascii2text(55 + val) // 65 - 70 correspond to "A" - "F"
-		hex = "[val][hex]"
-	while(length(hex) < placeholder)
-		hex = "0[hex]"
-	return hex || "0"
 
 //Returns an integer value for R of R/G/B given a hex color input.
 /proc/color2R(hex)
@@ -86,21 +34,21 @@
 		num_list += text2num(x)
 	return num_list
 
-//Splits the text of a file at seperator and returns them in a list.
-/proc/file2list(filename, seperator="\n")
-	return splittext(return_file_text(filename),seperator)
-
-
-//Turns a direction into text
-
-/proc/num2dir(direction)
-	switch(direction)
-		if(1.0) return NORTH
-		if(2.0) return SOUTH
-		if(4.0) return EAST
-		if(8.0) return WEST
-		else
-			log_runtime(EXCEPTION("UNKNOWN DIRECTION: [direction]"))
+//Splits the text of a file at separator and returns them in a list.
+/proc/file2list(filename, separator = "\n", no_empty = TRUE)
+	if(IsAdminAdvancedProcCall())
+		// Admins shouldnt fuck with this
+		to_chat(usr, SPAN_BOLDANNOUNCEOOC("File load blocked: Advanced ProcCall detected."))
+		message_admins("[key_name(usr)] attempted to load files via advanced proc-call")
+		log_admin("[key_name(usr)] attempted to load files via advanced proc-call")
+		return
+	var/list/result = list()
+	for(var/line in splittext(return_file_text(filename), separator))
+		var/text = trim(line)
+		if(no_empty && !text)
+			continue
+		result += text
+	return result
 
 /proc/dir2text(direction)
 	switch(direction)
@@ -120,8 +68,6 @@
 			return "northwest"
 		if(10.0)
 			return "southwest"
-		else
-	return
 
 //Turns text into proper directions
 /proc/text2dir(direction)
@@ -142,12 +88,10 @@
 			return 6
 		if("SOUTHWEST")
 			return 10
-		else
-	return
 
 //Converts an angle (degrees) into an ss13 direction
 /proc/angle2dir(degree)
-	degree = ((degree+22.5)%365)
+	degree = (degree + 22.5) % 360
 	if(degree < 45)		return NORTH
 	if(degree < 90)		return NORTHEAST
 	if(degree < 135)	return EAST
@@ -194,26 +138,23 @@
 		if(BLEND_SUBTRACT) return ICON_SUBTRACT
 		else               return ICON_OVERLAY
 
-//Converts a rights bitfield into a string
-/proc/rights2text(rights,seperator="")
-	if(rights & R_BUILDMODE)	. += "[seperator]+BUILDMODE"
-	if(rights & R_ADMIN)		. += "[seperator]+ADMIN"
-	if(rights & R_BAN)			. += "[seperator]+BAN"
-	if(rights & R_EVENT)		. += "[seperator]+EVENT"
-	if(rights & R_SERVER)		. += "[seperator]+SERVER"
-	if(rights & R_DEBUG)		. += "[seperator]+DEBUG"
-	if(rights & R_POSSESS)		. += "[seperator]+POSSESS"
-	if(rights & R_PERMISSIONS)	. += "[seperator]+PERMISSIONS"
-	if(rights & R_STEALTH)		. += "[seperator]+STEALTH"
-	if(rights & R_REJUVINATE)	. += "[seperator]+REJUVINATE"
-	if(rights & R_VAREDIT)		. += "[seperator]+VAREDIT"
-	if(rights & R_SOUNDS)		. += "[seperator]+SOUND"
-	if(rights & R_SPAWN)		. += "[seperator]+SPAWN"
-	if(rights & R_PROCCALL)		. += "[seperator]+PROCCALL"
-	if(rights & R_MOD)			. += "[seperator]+MODERATOR"
-	if(rights & R_MENTOR)		. += "[seperator]+MENTOR"
-	if(rights & R_VIEWRUNTIMES)	. += "[seperator]+VIEWRUNTIMES"
-	return .
+///Converts a rights bitfield into a string
+/proc/rights2text(rights,separator="")
+	. = ""
+	for(var/bit in GLOB.admin_permission_names)
+		if(rights & bit)
+			. += "[separator]+[GLOB.admin_permission_names[bit]]"
+
+///Converts the full permissions details of a DB-ranked admin to a HTML-colored string
+/proc/ranked_rights2text(rank_rights, extra_rights, removed_rights, separator="")
+	. = ""
+	for(var/bit in GLOB.admin_permission_names)
+		if(removed_rights & bit)
+			. += "[separator]<span style='color: #FF5555'><s>-[GLOB.admin_permission_names[bit]]</s></span>"
+		else if(extra_rights & bit)
+			. += "[separator]<span style='color: #5555FF'>+[GLOB.admin_permission_names[bit]]</span>"
+		else if(rank_rights & bit)
+			. += "[separator]<span style='color: #FF55FF'>+[GLOB.admin_permission_names[bit]]</span>"
 
 /proc/ui_style2icon(ui_style)
 	switch(ui_style)
@@ -227,6 +168,12 @@
 			return 'icons/mob/screen_operative.dmi'
 		if("White")
 			return 'icons/mob/screen_white.dmi'
+		if("Clockwork")
+			return 'icons/mob/screen_clockwork.dmi'
+		if("Mindflayer")
+			return 'icons/mob/screen_mindflayer.dmi'
+		if("Midnight")
+			return 'icons/mob/screen_midnight.dmi'
 		else
 			return 'icons/mob/screen_midnight.dmi'
 
@@ -308,7 +255,7 @@
 /proc/heat2color_g(temp)
 	temp /= 100
 	if(temp <= 66)
-		. = max(0, min(255, 99.4708025861 * log(temp) - 161.1195681661))
+		. = max(0, min(255, 99.4708025861 * log(max(temp, 1)) - 161.1195681661))
 	else
 		. = max(0, min(255, 288.1221695283 * ((temp - 60) ** -0.0755148492)))
 
@@ -320,7 +267,7 @@
 		if(temp <= 16)
 			. = 0
 		else
-			. = max(0, min(255, 138.5177312231 * log(temp - 10) - 305.0447927307))
+			. = max(0, min(255, 138.5177312231 * log(max(temp - 10, 1)) - 305.0447927307))
 
 //Argument: Give this a space-separated string consisting of 6 numbers. Returns null if you don't
 /proc/text2matrix(matrixtext)
@@ -331,7 +278,7 @@
 		if(entry == null)
 			return null
 		matrix_list += entry
-	if(matrix_list.len < 6)
+	if(length(matrix_list) < 6)
 		return null
 	var/a = matrix_list[1]
 	var/b = matrix_list[2]
@@ -385,10 +332,65 @@
 		switch(child)
 			if(/datum)
 				return null
-			if(/obj || /mob)
+			if(/obj, /mob)
 				return /atom/movable
-			if(/area || /turf)
+			if(/area, /turf)
 				return /atom
 			else
 				return /datum
 	return text2path(copytext(string_type, 1, last_slash))
+
+/proc/text2bool(input)
+	if(input == "true")
+		return TRUE
+	return FALSE //
+
+/// Turns a Body_parts_covered bitfield into a list of organ/limb names.
+/proc/cover_flags2body_zones(bpc)
+	var/list/covered_parts = list()
+
+	if(!bpc)
+		return 0
+
+	if(bpc == FULL_BODY)
+		covered_parts |= list(BODY_ZONE_L_ARM,BODY_ZONE_R_ARM,BODY_ZONE_HEAD,BODY_ZONE_CHEST,BODY_ZONE_L_LEG,BODY_ZONE_R_LEG)
+
+	else
+		if(bpc & HEAD)
+			covered_parts |= list(BODY_ZONE_HEAD)
+		if(bpc & UPPER_TORSO || bpc & LOWER_TORSO)
+			covered_parts |= list(BODY_ZONE_CHEST)
+
+		if(bpc & ARMS)
+			covered_parts |= list(BODY_ZONE_L_ARM,BODY_ZONE_R_ARM)
+		else
+			if(bpc & ARM_LEFT)
+				covered_parts |= list(BODY_ZONE_L_ARM)
+			if(bpc & ARM_RIGHT)
+				covered_parts |= list(BODY_ZONE_R_ARM)
+
+		if(bpc & HANDS)
+			covered_parts |= list(BODY_ZONE_L_ARM,BODY_ZONE_R_ARM)
+		else
+			if(bpc & HAND_LEFT)
+				covered_parts |= list(BODY_ZONE_L_ARM)
+			if(bpc & HAND_RIGHT)
+				covered_parts |= list(BODY_ZONE_R_ARM)
+
+		if(bpc & LEGS)
+			covered_parts |= list(BODY_ZONE_L_LEG,BODY_ZONE_R_LEG)
+		else
+			if(bpc & LEG_LEFT)
+				covered_parts |= list(BODY_ZONE_L_LEG)
+			if(bpc & LEG_RIGHT)
+				covered_parts |= list(BODY_ZONE_R_LEG)
+
+		if(bpc & FEET)
+			covered_parts |= list(BODY_ZONE_L_LEG,BODY_ZONE_R_LEG)
+		else
+			if(bpc & FOOT_LEFT)
+				covered_parts |= list(BODY_ZONE_L_LEG)
+			if(bpc & FOOT_RIGHT)
+				covered_parts |= list(BODY_ZONE_R_LEG)
+
+	return covered_parts

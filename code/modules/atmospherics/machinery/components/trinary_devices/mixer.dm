@@ -2,75 +2,56 @@
 	icon = 'icons/atmos/mixer.dmi'
 	icon_state = "map"
 
-	can_unwrench = 1
+	can_unwrench = TRUE
 
 	name = "gas mixer"
 
-	var/target_pressure = ONE_ATMOSPHERE
+	target_pressure = ONE_ATMOSPHERE
 	var/node1_concentration = 0.5
 	var/node2_concentration = 0.5
 
 	//node 3 is the outlet, nodes 1 & 2 are intakes
 
+// So we can CtrlClick without triggering the anchored message.
+/obj/machinery/atmospherics/trinary/mixer/can_be_pulled(user, grab_state, force, show_message)
+	return FALSE
+
 /obj/machinery/atmospherics/trinary/mixer/CtrlClick(mob/living/user)
-	if(!istype(user) || user.incapacitated())
-		to_chat(user, "<span class='warning'>You can't do that right now!</span>")
-		return
-	if(!in_range(src, user) && !issilicon(usr))
-		return
-	if(!ishuman(usr) && !issilicon(usr))
-		return
-	toggle()
+	if(can_use_shortcut(user))
+		toggle(user)
+		investigate_log("was turned [on ? "on" : "off"] by [key_name(user)]", INVESTIGATE_ATMOS)
 	return ..()
 
-/obj/machinery/atmospherics/trinary/mixer/AICtrlClick()
-	toggle()
-	return ..()
+/obj/machinery/atmospherics/trinary/mixer/AICtrlClick(mob/living/silicon/user)
+	toggle(user)
+	investigate_log("was turned [on ? "on" : "off"] by [key_name(user)]", INVESTIGATE_ATMOS)
 
 /obj/machinery/atmospherics/trinary/mixer/AltClick(mob/living/user)
-	if(!istype(user) || user.incapacitated())
-		to_chat(user, "<span class='warning'>You can't do that right now!</span>")
-		return
-	if(!in_range(src, user) && !issilicon(usr))
-		return
-	if(!ishuman(usr) && !issilicon(usr))
-		return
-	set_max()
-	return
+	if(can_use_shortcut(user))
+		set_max(user)
+		investigate_log("was set to [target_pressure] kPa by [key_name(user)]", INVESTIGATE_ATMOS)
 
-/obj/machinery/atmospherics/trinary/mixer/AIAltClick()
-	set_max()
-	return ..()
+/obj/machinery/atmospherics/trinary/mixer/AIAltClick(mob/living/silicon/user)
+	set_max(user)
+	investigate_log("was set to [target_pressure] kPa by [key_name(user)]", INVESTIGATE_ATMOS)
 
 /obj/machinery/atmospherics/trinary/mixer/flipped
 	icon_state = "mmap"
-	flipped = 1
+	flipped = TRUE
 
-/obj/machinery/atmospherics/trinary/mixer/proc/toggle()
-	if(powered())
-		on = !on
-		update_icon()
-
-/obj/machinery/atmospherics/trinary/mixer/proc/set_max()
-	if(powered())
-		target_pressure = MAX_OUTPUT_PRESSURE
-		update_icon()
-
-/obj/machinery/atmospherics/trinary/mixer/update_icon(safety = 0)
-	..()
-
+/obj/machinery/atmospherics/trinary/mixer/update_icon_state()
 	if(flipped)
 		icon_state = "m"
 	else
 		icon_state = ""
 
-	if(!powered())
+	if(!has_power())
 		icon_state += "off"
 	else if(node2 && node3 && node1)
 		icon_state += on ? "on" : "off"
 	else
 		icon_state += "off"
-		on = 0
+		on = FALSE
 
 /obj/machinery/atmospherics/trinary/mixer/update_underlays()
 	if(..())
@@ -89,19 +70,17 @@
 		add_underlay(T, node3, dir)
 
 /obj/machinery/atmospherics/trinary/mixer/power_change()
-	var/old_stat = stat
-	..()
-	if(old_stat != stat)
-		update_icon()
+	if(!..())
+		return
+	update_icon()
 
 /obj/machinery/atmospherics/trinary/mixer/New()
 	..()
 	air3.volume = 300
 
 /obj/machinery/atmospherics/trinary/mixer/process_atmos()
-	..()
-	if(!on)
-		return 0
+	if((stat & (NOPOWER|BROKEN)) || !on)
+		return FALSE
 
 	var/output_starting_pressure = air3.return_pressure()
 
@@ -115,11 +94,11 @@
 	var/transfer_moles1 = 0
 	var/transfer_moles2 = 0
 
-	if(air1.temperature > 0)
-		transfer_moles1 = (node1_concentration*pressure_delta)*air3.volume/(air1.temperature * R_IDEAL_GAS_EQUATION)
+	if(air1.temperature() > 0)
+		transfer_moles1 = (node1_concentration*pressure_delta)*air3.volume/(air1.temperature() * R_IDEAL_GAS_EQUATION)
 
-	if(air2.temperature > 0)
-		transfer_moles2 = (node2_concentration*pressure_delta)*air3.volume/(air2.temperature * R_IDEAL_GAS_EQUATION)
+	if(air2.temperature() > 0)
+		transfer_moles2 = (node2_concentration*pressure_delta)*air3.volume/(air2.temperature() * R_IDEAL_GAS_EQUATION)
 
 	var/air1_moles = air1.total_moles()
 	var/air2_moles = air2.total_moles()
@@ -159,16 +138,19 @@
 		return
 
 	if(!allowed(user))
-		to_chat(user, "<span class='alert'>Access denied.</span>")
+		to_chat(user, SPAN_ALERT("Access denied."))
 		return
 
 	add_fingerprint(user)
 	ui_interact(user)
 
-/obj/machinery/atmospherics/trinary/mixer/ui_interact(mob/user, ui_key = "main", datum/tgui/ui = null, force_open = FALSE, datum/tgui/master_ui = null, datum/ui_state/state = GLOB.default_state)
-	ui = SStgui.try_update_ui(user, src, ui_key, ui, force_open)
+/obj/machinery/atmospherics/trinary/mixer/ui_state(mob/user)
+	return GLOB.default_state
+
+/obj/machinery/atmospherics/trinary/mixer/ui_interact(mob/user, datum/tgui/ui = null)
+	ui = SStgui.try_update_ui(user, src, ui)
 	if(!ui)
-		ui = new(user, src, ui_key, "AtmosMixer", name, 330, 165, master_ui, state)
+		ui = new(user, src, "AtmosMixer", name)
 		ui.open()
 
 /obj/machinery/atmospherics/trinary/mixer/ui_data(mob/user)
@@ -190,19 +172,19 @@
 	switch(action)
 		if("power")
 			toggle()
-			investigate_log("was turned [on ? "on" : "off"] by [key_name(usr)]", "atmos")
+			investigate_log("was turned [on ? "on" : "off"] by [key_name(usr)]", INVESTIGATE_ATMOS)
 			return TRUE
 
 		if("set_node")
 			if(params["node_name"] == "Node 1")
 				node1_concentration = clamp(round(text2num(params["concentration"]), 0.01), 0, 1)
 				node2_concentration = round(1 - node1_concentration, 0.01)
-				investigate_log("was set to [node1_concentration] % on node 1 by [key_name(usr)]", "atmos")
+				investigate_log("was set to [node1_concentration] % on node 1 by [key_name(usr)]", INVESTIGATE_ATMOS)
 				return TRUE
 			else
 				node2_concentration = clamp(round(text2num(params["concentration"]), 0.01), 0, 1)
 				node1_concentration = round(1 - node2_concentration, 0.01)
-				investigate_log("was set to [node2_concentration] % on node 2 by [key_name(usr)]", "atmos")
+				investigate_log("was set to [node2_concentration] % on node 2 by [key_name(usr)]", INVESTIGATE_ATMOS)
 				return TRUE
 
 		if("max_pressure")
@@ -217,11 +199,11 @@
 			target_pressure = clamp(text2num(params["pressure"]), 0, MAX_OUTPUT_PRESSURE)
 			. = TRUE
 	if(.)
-		investigate_log("was set to [target_pressure] kPa by [key_name(usr)]", "atmos")
+		investigate_log("was set to [target_pressure] kPa by [key_name(usr)]", INVESTIGATE_ATMOS)
 
-/obj/machinery/atmospherics/trinary/mixer/attackby(obj/item/W, mob/user, params)
-	if(istype(W, /obj/item/pen))
-		rename_interactive(user, W)
-		return
-	else
-		return ..()
+/obj/machinery/atmospherics/trinary/mixer/item_interaction(mob/living/user, obj/item/used, list/modifiers)
+	if(is_pen(used))
+		rename_interactive(user, used)
+		return ITEM_INTERACT_COMPLETE
+
+	return ..()

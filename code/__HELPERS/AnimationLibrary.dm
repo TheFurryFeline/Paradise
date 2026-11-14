@@ -5,10 +5,15 @@
  */
 
 /proc/animate_fade_grayscale(atom/A, time = 5)
-	if(!istype(A) && !istype(A, /client))
+	if(!istype(A) && !isclient(A))
 		return
 	A.color = null
-	animate(A, color = MATRIX_GREYSCALE, time = time, easing = SINE_EASING)
+	animate(A, color = MATRIX_GREYSCALE, time = time, easing = SINE_EASING, flags = ANIMATION_PARALLEL)
+
+/proc/animate_fade_colored(atom/A, time = 5)
+	if(!istype(A) && !isclient(A))
+		return
+	animate(A, color = null, time = time, easing = SINE_EASING, flags = ANIMATION_PARALLEL)
 
 /proc/animate_melt_pixel(atom/A)
 	if(!istype(A))
@@ -188,3 +193,21 @@
 	animate(A, transform = matrix(punchstr, MATRIX_ROTATE), pixel_y = 16, time = 2, color = "#eeeeee", easing = BOUNCE_EASING)
 	animate(transform = matrix(-punchstr, MATRIX_ROTATE), pixel_y = original_y, time = 2, color = "#ffffff", easing = BOUNCE_EASING)
 	animate(transform = null, time = 3, easing = BOUNCE_EASING)
+
+/proc/animate_rumble(atom/A)
+	var/static/list/transforms
+	if(!transforms)
+		var/matrix/M1 = matrix()
+		var/matrix/M2 = matrix()
+		var/matrix/M3 = matrix()
+		var/matrix/M4 = matrix()
+		M1.Translate(-1, 0)
+		M2.Translate(0, 1)
+		M3.Translate(1, 0)
+		M4.Translate(0, -1)
+		transforms = list(M1, M2, M3, M4)
+
+	animate(A, transform = transforms[1], time = 0.2, loop = -1)
+	animate(transform = transforms[2], time = 0.1)
+	animate(transform = transforms[3], time = 0.2)
+	animate(transform = transforms[4], time = 0.3)

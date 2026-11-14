@@ -7,11 +7,10 @@
 */
 
 /datum/sprite_accessory/facial_hair/shaved
-    icon = 'icons/mob/human_face.dmi' // Special case, use the bald icon in human face
-    name = "Shaved"
-    icon_state = "bald"
-    gender = NEUTER
-    species_allowed = list("Human", "Unathi", "Tajaran", "Skrell", "Vox", "Diona", "Kidan", "Greys", "Vulpkanin", "Slime People")
+	icon = 'icons/mob/human_face.dmi' // Special case, use the bald icon in human face
+	name = "Shaved"
+	icon_state = "bald"
+	species_allowed = list("Human", "Unathi", "Tajaran", "Skrell", "Vox", "Diona", "Kidan", "Greys", "Vulpkanin", "Slime People")
 
 /datum/sprite_accessory/facial_hair/watson
 	name = "Watson Mustache"
@@ -60,7 +59,7 @@
 
 /datum/sprite_accessory/facial_hair/chinstrap
 	name = "Chinstrap"
-	icon_state = "chim"
+	icon_state = "chin"
 
 /datum/sprite_accessory/facial_hair/hip
 	name = "Hipster Beard"
@@ -103,3 +102,18 @@
 //////////////////////////////
 //////END VG HAIRSTYLES///////
 //////////////////////////////
+
+/datum/sprite_accessory/facial_hair/muttonmus
+	name = "Muttonmus"
+	icon_state = "muttons"
+
+/datum/sprite_accessory/facial_hair/elvislong
+	name = "Long Sideburns"
+	icon_state = "elvislong"
+	species_allowed = list("Human", "Slime People",)
+
+/datum/sprite_accessory/facial_hair/elvislongunathi
+	name = "Long Unathi Sideburns"
+	icon_state = "elvislongunathi"
+	species_allowed = list("Unathi")
+

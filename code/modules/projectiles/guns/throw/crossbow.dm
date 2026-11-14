@@ -8,7 +8,7 @@
 	name = "powered crossbow"
 	desc = "A modern twist on an old classic. Pick up that can."
 	icon_state = "crossbow"
-	item_state = "crossbow-solid"
+	inhand_icon_state = "crossbow-solid"
 	fire_sound_text = "a solid thunk"
 	fire_delay = 25
 
@@ -27,9 +27,9 @@
 
 /obj/item/gun/throw/crossbow/emp_act(severity)
 	if(cell && severity)
-		emp_act(severity)
+		cell.emp_act(severity)
 
-/obj/item/gun/throw/crossbow/update_icon()
+/obj/item/gun/throw/crossbow/update_icon_state()
 	if(!tension)
 		if(!to_launch)
 			icon_state = "[initial(icon_state)]"
@@ -41,14 +41,15 @@
 /obj/item/gun/throw/crossbow/examine(mob/user)
 	. = ..()
 	if(cell)
-		. += "<span class='notice'>\A [cell] is mounted onto [src]. Battery cell charge: [cell.charge]/[cell.maxcharge]"
+		. += SPAN_NOTICE("\A [cell] is mounted onto [src]. Battery cell charge: [cell.charge]/[cell.maxcharge]")
 	else
-		. += "<span class='notice'>It has an empty mount for a battery cell.</span>"
+		. += SPAN_NOTICE("It has an empty mount for a battery cell.")
+	. += SPAN_NOTICE("<b>Alt-Click</b> [src] to adjust it's tension.")
 
 /obj/item/gun/throw/crossbow/modify_projectile(obj/item/I, on_chamber = 0)
 	if(cell && on_chamber && istype(I, /obj/item/arrow/rod))
 		var/obj/item/arrow/rod/R = I
-		visible_message("<span class='danger'>[R] plinks and crackles as it begins to glow red-hot.</span>")
+		visible_message(SPAN_DANGER("[R] plinks and crackles as it begins to glow red-hot."))
 		R.throwforce = 15
 		R.superheated = 1
 		cell.use(500)
@@ -63,70 +64,88 @@
 	..()
 	if(to_launch)
 		modify_projectile(to_launch, 1)
-	update_icon()
+	update_icon(UPDATE_ICON_STATE)
 
-/obj/item/gun/throw/crossbow/attack_self(mob/living/user)
-	if(tension)
-		if(to_launch)
-			user.visible_message("<span class='notice'>[user] relaxes the tension on [src]'s string and removes [to_launch].</span>","<span class='notice'>You relax the tension on [src]'s string and remove [to_launch].</span>")
-			to_launch.forceMove(get_turf(src))
-			var/obj/item/arrow/A = to_launch
-			to_launch = null
-			A.removed()
-			process_chamber()
-		else
-			user.visible_message("<span class='notice'>[user] relaxes the tension on [src]'s string.</span>","<span class='notice'>You relax the tension on [src]'s string.</span>")
-		tension = 0
-		update_icon()
-	else
+/obj/item/gun/throw/crossbow/handle_activate_self(mob/user)
+	if(!tension)
 		draw(user)
+		return
+
+	if(to_launch)
+		user.visible_message(
+			SPAN_NOTICE("[user] relaxes the tension on [src]'s string and removes [to_launch]."),
+			SPAN_NOTICE("You relax the tension on [src]'s string and remove [to_launch].")
+		)
+		to_launch.forceMove(get_turf(src))
+		var/obj/item/arrow/A = to_launch
+		to_launch = null
+		A.removed()
+		process_chamber()
+	else
+		user.visible_message(
+			SPAN_NOTICE("[user] relaxes the tension on [src]'s string."),
+			SPAN_NOTICE("You relax the tension on [src]'s string.")
+		)
+	tension = 0
+	update_icon(UPDATE_ICON_STATE)
 
 /obj/item/gun/throw/crossbow/proc/draw(mob/living/user)
 	if(user.incapacitated())
 		return
 	if(!to_launch)
-		to_chat(user, "<span class='warning'>You can't draw [src] without a bolt nocked.</span>")
+		to_chat(user, SPAN_WARNING("You can't draw [src] without a bolt nocked."))
 		return
 
 	user.visible_message("[user] begins to draw back the string of [src].","You begin to draw back the string of [src].")
 	if(do_after(user, 25 * drawtension, target = user))
 		tension = drawtension
-		user.visible_message("[usr] draws back the string of [src]!","[src] clunks as you draw the string to its maximum tension!!")
-		update_icon()
+		user.visible_message(
+			SPAN_WARNING("[user] draws back the string of [src]!"),
+			SPAN_NOTICE("[src] clunks as you draw the string to its maximum tension!"),
+			SPAN_HEAR("You hear a clunk!")
+		)
+		update_icon(UPDATE_ICON_STATE)
 
-/obj/item/gun/throw/crossbow/attackby(obj/item/I, mob/user, params)
-	if(!istype(I, /obj/item/stock_parts/cell))
+/obj/item/gun/throw/crossbow/item_interaction(mob/living/user, obj/item/used, list/modifiers)
+	if(!istype(used, /obj/item/stock_parts/cell))
 		return ..()
 
 	if(cell)
-		to_chat(user, "<span class='notice'>[src] already has a cell installed.</span>")
-		return
+		to_chat(user, SPAN_WARNING("[src] already has a cell installed!"))
+		return ITEM_INTERACT_COMPLETE
 
-	user.drop_item()
-	I.forceMove(src)
-	cell = I
-	to_chat(user, "<span class='notice'>You jam [cell] into [src] and wire it to the firing coil.</span>")
+	if(!user.transfer_item_to(used, src))
+		to_chat(user, SPAN_WARNING("[src] is stuck to your hand!"))
+		return ITEM_INTERACT_COMPLETE
+
+	cell = used
+	to_chat(user, SPAN_NOTICE("You jam [cell] into [src] and wire it to the firing coil."))
 	process_chamber()
+	return ITEM_INTERACT_COMPLETE
 
 /obj/item/gun/throw/crossbow/screwdriver_act(mob/user, obj/item/I)
 	. = ..()
 	if(!cell)
-		to_chat(user, "<span class='notice'>[src] doesn't have a cell installed.</span>")
+		to_chat(user, SPAN_WARNING("[src] doesn't have a cell installed."))
 		return
 
 	cell.forceMove(get_turf(src))
-	to_chat(user, "<span class='notice'>You jimmy [cell] out of [src] with [I].</span>")
+	to_chat(user, SPAN_NOTICE("You jimmy [cell] out of [src] with [I]."))
 	cell = null
 
-/obj/item/gun/throw/crossbow/verb/set_tension()
-	set name = "Adjust Tension"
-	set category = "Object"
-	set src in range(0)
+/obj/item/gun/throw/crossbow/notify_ammo_count()
+	if(get_ammocount() >= 1)
+		return SPAN_NOTICE("[src] is loaded.")
+	return SPAN_NOTICE("[src] is not loaded.")
 
-	var/mob/user = usr
-	if(user.incapacitated())
+/obj/item/gun/throw/crossbow/Destroy()
+	. = ..()
+	QDEL_NULL(cell)
+
+/obj/item/gun/throw/crossbow/AltClick(mob/user)
+	if(user.stat || HAS_TRAIT(user, TRAIT_HANDS_BLOCKED) || !Adjacent(user))
 		return
-	var/choice = input("Select tension to draw to:", "[src]", XBOW_TENSION_FULL) as null|anything in possible_tensions
+	var/choice = tgui_input_list(user, "Select tension to draw to:", "[src]", possible_tensions)
 	if(!choice)
 		return
 
@@ -145,11 +164,12 @@
 /obj/item/gun/throw/crossbow/process_fire(atom/target as mob|obj|turf, mob/living/user as mob|obj, message = 1, params, zone_override)
 	..()
 	tension = 0
-	update_icon()
+	update_icon(UPDATE_ICON_STATE)
+
 /obj/item/gun/throw/crossbow/french
 	name = "french powered crossbow"
 	icon_state = "fcrossbow"
-	valid_projectile_type = /obj/item/reagent_containers/food/snacks/baguette
+	valid_projectile_type = /obj/item/food/baguette
 
 /obj/item/gun/throw/crossbow/french/modify_projectile(obj/item/I, on_chamber = 0)
 	return
@@ -158,10 +178,9 @@
 	name = "bolt"
 	desc = "It's got a tip for you - get the point?"
 	icon_state = "bolt"
-	item_state = "bolt"
+	inhand_icon_state = "rods"
 	throwforce = 20
-	w_class = WEIGHT_CLASS_NORMAL
-	sharp = 1
+	sharp = TRUE
 
 /obj/item/arrow/proc/removed() //Helper for metal rods falling apart.
 	return

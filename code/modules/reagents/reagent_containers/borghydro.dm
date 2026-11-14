@@ -1,132 +1,160 @@
-#define BORGHYPO_REFILL_VALUE 5
+#define BORGHYPO_REFILL_VALUE 10
 
 /obj/item/reagent_containers/borghypo
 	name = "Cyborg Hypospray"
 	desc = "An advanced chemical synthesizer and injection system, designed for heavy-duty medical equipment."
 	icon = 'icons/obj/hypo.dmi'
-	item_state = "hypo"
 	icon_state = "borghypo"
-	amount_per_transfer_from_this = 5
-	volume = 30
-	possible_transfer_amounts = null
-	var/mode = 1
+	possible_transfer_amounts = list(1, 2, 3, 4, 5, 10, 15, 20, 25, 30)
+	volume = 50
+	/// Cyborg that our module is attached to
+	var/mob/living/silicon/robot/cyborg
+	/// Amount of charge that we will deduct from cell on each successful `refill_hypo()`
 	var/charge_cost = 50
+	/// Delay in ticks we apply before refilling our hypo
+	var/refill_delay = 2
+	/// Tracking for how long we didn't make a refill. Refills on every (charge_tick > refill_delay) tick
 	var/charge_tick = 0
-	var/recharge_time = 5 //Time it takes for shots to recharge (in seconds)
-	var/bypass_protection = 0 //If the hypospray can go through armor or thick material
+	/// Can the autohypo inject through thick materials?
+	var/penetrate_thick = FALSE
+	/// if true - will play a sound on use
+	var/play_sound = TRUE
+	/// reagent that we will transfer on hypo use
+	var/reagent_selected = "salglu_solution"
+	/// reagents that we are able to dispense
+	var/list/reagent_ids = list("salglu_solution", "epinephrine", "spaceacillin", "charcoal", "hydrocodone", "mannitol", "salbutamol")
+	/// reagents that we will be able to dispense when someone emaggs us
+	var/list/reagent_ids_emagged = list("tirizene")
+	var/static/list/reagent_icons = list("salglu_solution" = image(icon = 'icons/goonstation/objects/iv.dmi', icon_state = "ivbag"),
+							"epinephrine" = image(icon = 'icons/obj/hypo.dmi', icon_state = "autoinjector"),
+							"spaceacillin" = image(icon = 'icons/obj/decals.dmi', icon_state = "biohazard"),
+							"charcoal" = image(icon = 'icons/obj/chemical.dmi', icon_state = "pill17"),
+							"hydrocodone" = image(icon = 'icons/obj/chemical.dmi', icon_state = "bottle19"),
+							"styptic_powder" = image(icon = 'icons/obj/chemical.dmi', icon_state = "bandaid2"),
+							"salbutamol" = image(icon = 'icons/obj/chemical.dmi', icon_state = "pill8"),
+							"sal_acid" = image(icon = 'icons/obj/chemical.dmi', icon_state = "pill4"),
+							"syndicate_nanites" = image(icon = 'icons/obj/decals.dmi', icon_state = "greencross"),
+							"potass_iodide" = image(icon = 'icons/obj/decals.dmi', icon_state = "radiation"),
+							"mannitol" = image(icon = 'icons/obj/chemical.dmi', icon_state = "pill19"),
+							"salbutamol" = image(icon = 'icons/obj/chemical.dmi', icon_state = "pill8"),
+							"corazone" = image(icon = 'icons/obj/abductor.dmi', icon_state = "bed"),
+							"tirizene" = image(icon = 'icons/obj/aibots.dmi', icon_state = "pancbot"))
 
-	var/list/datum/reagents/reagent_list = list()
-	var/list/reagent_ids = list("salglu_solution", "epinephrine", "spaceacillin", "charcoal", "hydrocodone")
-	//var/list/reagent_ids = list("salbutamol", "silver_sulfadiazine", "styptic_powder", "charcoal", "epinephrine", "spaceacillin", "hydrocodone")
+/obj/item/reagent_containers/borghypo/Initialize(mapload)
+	. = ..()
+	cyborg = loc.loc // yeah..
+	refill_hypo(quick = TRUE) // start with a full hypo
 
-/obj/item/reagent_containers/borghypo/surgeon
-	reagent_ids = list("styptic_powder", "epinephrine", "salbutamol")
+/obj/item/reagent_containers/borghypo/Destroy()
+	STOP_PROCESSING(SSobj, src)
+	cyborg = null
+	return ..()
 
-/obj/item/reagent_containers/borghypo/crisis
-	reagent_ids = list("salglu_solution", "epinephrine", "sal_acid")
+/obj/item/reagent_containers/borghypo/process()
+	if(!should_refill()) // no need to refill
+		STOP_PROCESSING(SSobj, src)
+		return
+	if(!refill_delay) // no delay, refill it now
+		refill_hypo(cyborg)
+		return
+	if(charge_tick < refill_delay) // not ready to refill
+		charge_tick++
+	else // ready to refill
+		refill_hypo(cyborg)
+
+// Use this to add more chemicals for the borghypo to produce.
+/obj/item/reagent_containers/borghypo/proc/refill_hypo(mob/living/silicon/robot/user, quick = FALSE)
+	if(quick) // gives us a hypo full of reagents no matter what
+		for(var/reagent as anything in reagent_ids)
+			if(reagent_ids[reagent] < volume)
+				reagent_ids[reagent] = volume
+		return
+	if(istype(user) && user.cell && user.cell.use(charge_cost)) // we are a robot, we have a cell and enough charge? let's refill now
+		if(charge_tick)
+			charge_tick = 0
+		for(var/reagent as anything in reagent_ids)
+			if(reagent_ids[reagent] < volume)
+				var/reagents_to_add = min(volume - reagent_ids[reagent], BORGHYPO_REFILL_VALUE)
+				reagent_ids[reagent] = (reagent_ids[reagent] || 0) + reagents_to_add // in case if it's null somehow, set it to 0
+
+// whether our hypo's reagents are at max volume or not
+/obj/item/reagent_containers/borghypo/proc/should_refill()
+	for(var/reagent as anything in reagent_ids)
+		if(reagent_ids[reagent] < volume)
+			return TRUE
+	return FALSE
+
+/obj/item/reagent_containers/borghypo/mob_act(mob/target, mob/living/user)
+	if(!ishuman(target))
+		return
+	if(!reagent_ids[reagent_selected])
+		to_chat(user, SPAN_WARNING("The injector is empty."))
+		return
+	var/mob/living/carbon/human/mob = target
+	if(mob.can_inject(user, TRUE, user.zone_selected, penetrate_thick))
+		to_chat(user, SPAN_NOTICE("You inject [mob] with [src]."))
+		to_chat(mob, SPAN_NOTICE("You feel a tiny prick!"))
+		var/reagents_to_transfer = min(amount_per_transfer_from_this, reagent_ids[reagent_selected])
+		mob.reagents.add_reagent(reagent_selected, reagents_to_transfer)
+		reagent_ids[reagent_selected] -= reagents_to_transfer
+		START_PROCESSING(SSobj, src) // start processing so we can refill hypo
+		if(play_sound)
+			playsound(loc, 'sound/goonstation/items/hypo.ogg', 80, FALSE)
+		if(mob.reagents)
+			var/datum/reagent/injected = GLOB.chemical_reagents_list[reagent_selected]
+			var/contained = injected.name
+			add_attack_logs(user, mob, "Injected with [name] containing [contained], transfered [reagents_to_transfer] units", injected.harmless ? ATKLOG_ALMOSTALL : null)
+			to_chat(user, SPAN_NOTICE("[reagents_to_transfer] units injected. [reagent_ids[reagent_selected]] units remaining."))
+
+/obj/item/reagent_containers/borghypo/proc/get_radial_contents()
+	return reagent_icons & reagent_ids
+
+/obj/item/reagent_containers/borghypo/activate_self(mob/user)
+	if(..())
+		return
+
+	playsound(loc, 'sound/effects/pop.ogg', 50, 0)
+	var/selected_reagent = show_radial_menu(user, src, get_radial_contents(), radius = 48)
+	if(!selected_reagent)
+		return
+	var/datum/reagent/R = GLOB.chemical_reagents_list[selected_reagent]
+	to_chat(user, SPAN_NOTICE("Synthesizer is now dispensing [R.name]."))
+	reagent_selected = selected_reagent
+
+/// Overriding because this is not really a reagent container
+/obj/item/reagent_containers/borghypo/build_reagent_description(mob/user)
+	var/datum/reagent/get_reagent_name = GLOB.chemical_reagents_list[reagent_selected]
+	return SPAN_NOTICE("Contains [reagent_ids[reagent_selected]] units of [get_reagent_name.name].")
+
+/obj/item/reagent_containers/borghypo/emag_act(mob/user)
+	if(!emagged)
+		emagged = TRUE
+		penetrate_thick = TRUE
+		play_sound = FALSE
+		reagent_ids += reagent_ids_emagged
+		refill_hypo(quick = TRUE)
+		return
+	emagged = FALSE
+	penetrate_thick = FALSE
+	play_sound = initial(play_sound)
+	reagent_ids -= reagent_ids_emagged
+	refill_hypo(quick = TRUE)
 
 /obj/item/reagent_containers/borghypo/syndicate
 	name = "syndicate cyborg hypospray"
 	desc = "An experimental piece of Syndicate technology used to produce powerful restorative nanites used to very quickly restore injuries of all types. Also metabolizes potassium iodide, for radiation poisoning, and hydrocodone, for field surgery and pain relief."
 	icon_state = "borghypo_s"
+	penetrate_thick = TRUE
+	refill_delay = FALSE // recharges each tick
+	play_sound = FALSE
+	volume = 30
 	charge_cost = 20
-	recharge_time = 2
 	reagent_ids = list("syndicate_nanites", "potass_iodide", "hydrocodone")
-	bypass_protection = 1
+	reagent_selected = "syndicate_nanites"
 
-/obj/item/reagent_containers/borghypo/New()
-	..()
-	for(var/R in reagent_ids)
-		add_reagent(R)
-
-	START_PROCESSING(SSobj, src)
-
-/obj/item/reagent_containers/borghypo/Destroy()
-	STOP_PROCESSING(SSobj, src)
-	return ..()
-
-/obj/item/reagent_containers/borghypo/process() //Every [recharge_time] seconds, recharge some reagents for the cyborg
-	charge_tick++
-	if(charge_tick < recharge_time)
-		return FALSE
-	charge_tick = 0
-
-	if(isrobot(loc))
-		var/mob/living/silicon/robot/R = loc
-		if(R && R.cell)
-			var/datum/reagents/RG = reagent_list[mode]
-			if(!refill_borghypo(RG, reagent_ids[mode], R)) 	//If the storage is not full recharge reagents and drain power.
-				for(var/i in 1 to reagent_list.len)     	//if active mode is full loop through the list and fill the first one that is not full
-					RG = reagent_list[i]
-					if(refill_borghypo(RG, reagent_ids[i], R))
-						break
-	//update_icon()
-	return TRUE
-
-// Use this to add more chemicals for the borghypo to produce.
-/obj/item/reagent_containers/borghypo/proc/add_reagent(reagent)
-	reagent_ids |= reagent
-	var/datum/reagents/RG = new(30)
-	RG.my_atom = src
-	reagent_list += RG
-
-	var/datum/reagents/R = reagent_list[reagent_list.len]
-	R.add_reagent(reagent, 30)
-
-/obj/item/reagent_containers/borghypo/proc/refill_borghypo(datum/reagents/RG, reagent_id, mob/living/silicon/robot/R)
-	if(RG.total_volume < RG.maximum_volume)
-		RG.add_reagent(reagent_id, BORGHYPO_REFILL_VALUE)
-		R.cell.use(charge_cost)
-		return TRUE
-	return FALSE
-
-/obj/item/reagent_containers/borghypo/attack(mob/living/carbon/human/M, mob/user)
-	var/datum/reagents/R = reagent_list[mode]
-	if(!R.total_volume)
-		to_chat(user, "<span class='warning'>The injector is empty.</span>")
-		return
-	if(!istype(M))
-		return
-	if(R.total_volume && M.can_inject(user, TRUE, user.zone_selected, penetrate_thick = bypass_protection))
-		to_chat(user, "<span class='notice'>You inject [M] with the injector.</span>")
-		to_chat(M, "<span class='notice'>You feel a tiny prick!</span>")
-
-		R.add_reagent(M)
-		if(M.reagents)
-			var/datum/reagent/injected = GLOB.chemical_reagents_list[reagent_ids[mode]]
-			var/contained = injected.name
-			var/trans = R.trans_to(M, amount_per_transfer_from_this)
-			add_attack_logs(user, M, "Injected with [name] containing [contained], transfered [trans] units", injected.harmless ? ATKLOG_ALMOSTALL : null)
-			to_chat(user, "<span class='notice'>[trans] units injected. [R.total_volume] units remaining.</span>")
-
-/obj/item/reagent_containers/borghypo/attack_self(mob/user)
-	playsound(loc, 'sound/effects/pop.ogg', 50, 0)		//Change the mode
-	mode++
-	if(mode > reagent_list.len)
-		mode = 1
-
-	charge_tick = 0 //Prevents wasted chems/cell charge if you're cycling through modes.
-	var/datum/reagent/R = GLOB.chemical_reagents_list[reagent_ids[mode]]
-	to_chat(user, "<span class='notice'>Synthesizer is now producing '[R.name]'.</span>")
-	return
-
-/obj/item/reagent_containers/borghypo/examine(mob/user)
-	. = ..()
-	if(get_dist(user, src) <= 2)
-		var/empty = TRUE
-
-		for(var/datum/reagents/RS in reagent_list)
-			var/datum/reagent/R = locate() in RS.reagent_list
-			if(R)
-				. += "<span class='notice'>It currently has [R.volume] units of [R.name] stored.</span>"
-				empty = FALSE
-
-		if(empty)
-			. += "<span class='notice'>It is currently empty. Allow some time for the internal syntheszier to produce more.</span>"
-
-/obj/item/reagent_containers/borghypo/basic
-	name = "Basic Medical Hypospray"
-	desc = "A very basic medical hypospray, capable of providing simple medical treatment in emergencies."
-	reagent_ids = list("salglu_solution", "epinephrine")
+/obj/item/reagent_containers/borghypo/abductor
+	penetrate_thick = TRUE
+	charge_cost = 40
+	reagent_ids = list("salglu_solution", "epinephrine", "spaceacillin", "charcoal", "hydrocodone", "mannitol", "salbutamol", "corazone")
 
 #undef BORGHYPO_REFILL_VALUE

@@ -1,20 +1,17 @@
 /obj/item/decorations
 	icon = 'icons/obj/decorations.dmi'
-
+	new_attack_chain = TRUE
 
 //duct tape decorations
 /obj/item/decorations/sticky_decorations
 	w_class = WEIGHT_CLASS_TINY
 
-/obj/item/decorations/sticky_decorations/New()
+/obj/item/decorations/sticky_decorations/Initialize(mapload)
 	. = ..()
-	AddComponent(/datum/component/ducttape, src, null, 0, 0, TRUE)//add this to something to make it sticky but without the tape overlay
-
-
+	AddComponent(/datum/component/ducttape, src, null, 0, 0, TRUE) // Add this to something to make it sticky but without the tape overlay.
 
 /obj/item/decorations/sticky_decorations/flammable
 	resistance_flags = FLAMMABLE
-
 
 //Non-holiday decorations
 
@@ -154,8 +151,6 @@
 
 //Valentines decorations
 
-
-
 /obj/item/decorations/sticky_decorations/flammable/arrowed_heart
 	name = "paper heart"
 	desc = "A paper heart. It's been shot through and Cupid is to blame!"
@@ -207,20 +202,22 @@
 /obj/item/decorations/sticky_decorations/flammable/easter_egg/orange
 	icon_state = "decoration_easter_egg_orange"
 
-
-
-
 ///////
 //Decorative structures
 ///////
 
-
 /obj/structure/decorative_structures
 	icon = 'icons/obj/decorations.dmi'
 	icon_state = ""
-	density = 1
-	anchored = 0
+	density = TRUE
 	max_integrity = 100
+
+/obj/structure/decorative_structures/wrench_act(mob/user, obj/item/I)
+	. = TRUE
+	add_fingerprint(user)
+	if(!I.tool_use_check(user, 0))
+		return
+	default_unfasten_wrench(user, I)
 
 /obj/structure/decorative_structures/metal
 	flags = CONDUCT
@@ -270,5 +267,3 @@
 	name = "lava land display"
 	desc = "The tomb of many a miner and possibly a home for much worse things."
 	icon_state = "lava_land_display"
-
-

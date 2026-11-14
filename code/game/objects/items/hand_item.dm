@@ -2,19 +2,33 @@
 	name = "slapper"
 	desc = "This is how real men fight."
 	icon_state = "latexballon"
-	item_state = "nothing"
-	force = 0
-	throwforce = 0
+	inhand_icon_state = "nothing"
 	flags = DROPDEL | ABSTRACT
-	attack_verb = list("slaps")
+	attack_verb = list("slapped")
 	hitsound = 'sound/weapons/slap.ogg'
 	/// How many smaller table smacks we can do before we're out
 	var/table_smacks_left = 3
+	new_attack_chain = TRUE
 
-/obj/item/slapper/attack(mob/M, mob/living/carbon/human/user)
+/obj/item/slapper/attack(mob/living/M, mob/living/user)
 	user.do_attack_animation(M)
 	playsound(M, hitsound, 50, TRUE, -1)
-	user.visible_message("<span class='danger'>[user] slaps [M]!</span>", "<span class='notice'>You slap [M]!</span>", "<span class='hear'>You hear a slap.</span>")
+	user.visible_message(SPAN_DANGER("[user] slaps [M]!"), SPAN_NOTICE("You slap [M]!"), SPAN_HEAR("You hear a slap."))
+	if(iscarbon(M))
+		var/mob/living/carbon/C = M
+		if(C.IsSleeping())
+			C.AdjustSleeping(-15 SECONDS)
+	if(force)
+		return ..()
+
+/obj/item/slapper/activate_self(mob/user)
+	if(..())
+		return ITEM_INTERACT_COMPLETE
+	if(!isliving(user))
+		return
+	var/mob/living/L = user
+	L.emote("highfive", intentional = TRUE)
+	return ITEM_INTERACT_COMPLETE
 
 /obj/item/slapper/attack_obj(obj/O, mob/living/user, params)
 	if(!istype(O, /obj/structure/table))
@@ -22,95 +36,68 @@
 
 	var/obj/structure/table/the_table = O
 
-	if(user.a_intent == INTENT_HARM && table_smacks_left == initial(table_smacks_left)) // so you can't do 2 weak slaps followed by a big slam
-		transform = transform.Scale(1.5) // BIG slap
-		if(HAS_TRAIT(user, TRAIT_HULK))
-			transform = transform.Scale(2)
-			color = COLOR_GREEN
-		user.do_attack_animation(the_table)
-		if(ishuman(user))
-			var/mob/living/carbon/human/human_user = user
-			if(istype(human_user.shoes, /obj/item/clothing/shoes/cowboy))
-				human_user.say(pick("Hot damn!", "Hoo-wee!", "Got-dang!"))
-		playsound(get_turf(the_table), 'sound/effects/tableslam.ogg', 110, TRUE)
-		user.visible_message("<b><span class='danger'>[user] slams [user.p_their()] fist down on [the_table]!</span></b>", "<b><span class='danger'>You slam your fist down on [the_table]!</span></b>")
-		qdel(src)
-	else
+	if(!(user.a_intent == INTENT_HARM && table_smacks_left == initial(table_smacks_left))) // So you can't do 2 weak slaps followed by a big slam.
 		user.do_attack_animation(the_table)
 		playsound(get_turf(the_table), 'sound/effects/tableslam.ogg', 40, TRUE)
-		user.visible_message("<span class='notice'>[user] slaps [user.p_their()] hand on [the_table].</span>", "<span class='notice'>You slap your hand on [the_table].</span>")
+		user.visible_message(SPAN_NOTICE("[user] slaps [user.p_their()] hand on [the_table]."), SPAN_NOTICE("You slap your hand on [the_table]."))
 		table_smacks_left--
 		if(table_smacks_left <= 0)
 			qdel(src)
-
-/obj/item/kisser
-	name = "kiss"
-	desc = "I want you all to know, everyone and anyone, to seal it with a kiss."
-	icon = 'icons/mob/animal.dmi'
-	icon_state = "heart"
-	item_state = "nothing"
-	force = 0
-	throwforce = 0
-	flags = DROPDEL | ABSTRACT
-	/// The kind of projectile this version of the kiss blower fires
-	var/kiss_type = /obj/item/projectile/kiss
-
-/obj/item/kisser/afterattack(atom/target, mob/user, flag, params)
-	var/turf/user_turf = get_turf(user)
-	var/obj/item/projectile/blown_kiss = new kiss_type(user_turf)
-	user.visible_message("<b>[user]</b> blows \a [blown_kiss] at [target]!", "<span class='notice'>You blow \a [blown_kiss] at [target]!</span>")
-
-	//Shooting Code:
-	blown_kiss.spread = 0
-	blown_kiss.original = target
-	blown_kiss.firer = user // don't hit ourself that would be really annoying
-	blown_kiss.preparePixelProjectile(target, user_turf, user, params)
-	blown_kiss.fire()
+		return
+	transform = transform.Scale(1.5) // BIG slap!
+	if(HAS_TRAIT(user, TRAIT_HULK))
+		transform = transform.Scale(2)
+		color = COLOR_GREEN
+	user.do_attack_animation(the_table)
+	if(ishuman(user))
+		var/mob/living/carbon/human/human_user = user
+		if(istype(human_user.shoes, /obj/item/clothing/shoes/cowboy))
+			human_user.say(pick("Hot damn!", "Hoo-wee!", "Got-dang!"))
+	playsound(get_turf(the_table), 'sound/effects/tableslam.ogg', 110, TRUE)
+	user.visible_message("<b>[SPAN_DANGER("[user] slams [user.p_their()] fist down on [the_table]!")]</b>", "<b>[SPAN_DANGER("You slam your fist down on [the_table]!")]</b>")
 	qdel(src)
 
-/obj/item/kisser/death
-	name = "kiss of death"
-	desc = "If looks could kill, they'd be this."
-	color = COLOR_BLACK
-	kiss_type = /obj/item/projectile/kiss/death
+/obj/item/slapper/get_clamped_volume() //Without this, you would hear the slap twice if it has force.
+	return 0
 
-/obj/item/projectile/kiss
-	name = "kiss"
-	icon = 'icons/mob/animal.dmi'
-	icon_state = "heart"
-	hitsound = 'sound/effects/kiss.ogg'
-	hitsound_wall = 'sound/effects/kiss.ogg'
-	pass_flags = PASSTABLE | PASSGLASS | PASSGRILLE
-	speed = 1.6
-	damage_type = BRUTE
-	damage = 0
-	nodamage = TRUE // love can't actually hurt you
-	armour_penetration = 100 // but if it could, it would cut through even the thickest plate
-	flag = "magic" // and most importantly, love is magic~
+/obj/item/slapper/parry
+	desc = "This is how real men win fights."
+	force = 5
+	flags = DROPDEL | ABSTRACT | NODROP
+	attack_verb = list("slapped", "backhanded", "smacked", "discombobulated")
+	table_smacks_left = 10 // Much more smackitude.
 
-/obj/item/projectile/kiss/fire(angle)
-	if(firer)
-		name = "[name] blown by [firer]"
+/obj/item/slapper/parry/Initialize(mapload)
+	AddComponent(/datum/component/parry, _stamina_constant = 2, _stamina_coefficient = 0.5, _parryable_attack_types = NON_PROJECTILE_ATTACKS, _parry_cooldown = (4 / 3) SECONDS) //75% uptime
+	if(isliving(loc))
+		var/mob/owner = loc
+		RegisterSignal(owner, COMSIG_MOB_WILLINGLY_DROP, PROC_REF(dropkey), override = TRUE)
+		RegisterSignal(owner, COMSIG_MOB_WEAPON_APPEARS, PROC_REF(dropkey), override = TRUE)
 	return ..()
 
-/obj/item/projectile/kiss/on_hit(atom/target, blocked, hit_zone)
-	def_zone = BODY_ZONE_HEAD // let's keep it PG, people
-	. = ..()
+/obj/item/slapper/parry/proc/dropkey(mob/user)
+	if(user?.get_active_hand() == src)
+		qdel(src)
 
-/obj/item/projectile/kiss/death
-	name = "kiss of death"
-	nodamage = FALSE // okay i kinda lied about love not being able to hurt you
-	damage = 35
-	sharp = TRUE
-	color = COLOR_BLACK
+/obj/item/slapper/parry/Destroy()
+	if(isliving(loc))
+		var/mob/owner = loc
+		UnregisterSignal(owner, COMSIG_MOB_WILLINGLY_DROP)
+		UnregisterSignal(owner, COMSIG_MOB_WEAPON_APPEARS)
+	return ..()
 
-/obj/item/projectile/kiss/death/on_hit(atom/target, blocked, pierce_hit)
-	. = ..()
-	if(!iscarbon(target))
-		return
-	var/mob/living/carbon/heartbreakee = target
-	var/obj/item/organ/internal/heart/dont_go_breakin_my_heart = heartbreakee.get_organ_slot("heart")
-	if(dont_go_breakin_my_heart)
-		dont_go_breakin_my_heart.receive_damage(999)
-	else // You're probably a snowflakey species or Xenomorph
-		heartbreakee.adjustFireLoss(1000) // the sickest of burns
+/obj/item/slapper/parry/after_attack(atom/target, mob/user, proximity_flag, click_parameters)
+	if(!isliving(target))
+		return ..()
+	var/mob/living/creature = target
+	SEND_SOUND(creature, sound('sound/weapons/flash_ring.ogg'))
+	creature.Confused(10 SECONDS) // SMACK CAM!
+	creature.EyeBlind(2 SECONDS) // OH GOD MY EARS ARE RINGING!
+	creature.Deaf(4 SECONDS) // OH MY HEAD!
+	return FINISH_ATTACK
+
+/obj/item/slapper/run_pointed_on_item(mob/pointer_mob, atom/target_atom)
+	if(target_atom == src)
+		pointer_mob.visible_message("<b>[pointer_mob]</b> raises [pointer_mob.p_their()] hand!")
+		return TRUE
+	return ..()

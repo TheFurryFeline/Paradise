@@ -14,6 +14,7 @@ GLOBAL_LIST_INIT(assigned_mutation_blocks, new(DNA_SE_LENGTH))
 // Used to determine what each block means (admin hax and species stuff on /vg/, mostly)
 GLOBAL_LIST_INIT(assigned_blocks, new(DNA_SE_LENGTH))
 
+/// Assoc list. Key = type of the mutation, value = the mutation
 GLOBAL_LIST_EMPTY(dna_mutations)
 
 GLOBAL_LIST_EMPTY(good_blocks)
@@ -22,9 +23,12 @@ GLOBAL_LIST_EMPTY(bad_blocks)
 /datum/dna
 	// READ-ONLY, GETS OVERWRITTEN
 	// DO NOT FUCK WITH THESE OR BYOND WILL EAT YOUR FACE
-	var/uni_identity = "" // Encoded UI
-	var/struc_enzymes = "" // Encoded SE
-	var/unique_enzymes = "" // MD5 of player name
+	/// Encoded UI
+	var/uni_identity = ""
+	/// Encoded SE
+	var/struc_enzymes = ""
+	/// MD5 of player name
+	var/unique_enzymes = ""
 
 	// Original Encoded SE, for use with Ryetalin
 	var/struc_enzymes_original = "" // Encoded SE
@@ -40,11 +44,26 @@ GLOBAL_LIST_EMPTY(bad_blocks)
 	var/list/UI[DNA_UI_LENGTH]
 
 	// From old dna.
-	var/blood_type = "A+"  // Should probably change to an integer => string map but I'm lazy.
-	var/real_name          // Stores the real name of the person who originally got this dna datum. Used primarily for changelings,
-
-	var/datum/species/species = new /datum/species/human //The type of mutant race the player is if applicable (i.e. potato-man)
-	var/list/default_blocks = list() //list of all blocks toggled at roundstart
+	/// The blood type of the mob.
+	var/blood_type = "A+"
+	/// Stores the real name of the person who originally got this dna datum. Used primarily for changelings,
+	var/real_name
+	/// The type of mutant race the player is if applicable (i.e. potato-man)
+	var/datum/species/species = new /datum/species/human
+	/// list of all blocks toggled at roundstart
+	var/list/default_blocks = list()
+	/// The flavor text of the person. We store this here for polymorph and changelings.
+	var/flavor_text
+	/// The chat color to load for when a character is cloned, a changeling transforms, or when a character is created
+	var/chat_color
+	/// The blooper data to load for when a character is cloned, a changeling transforms, or when a character is created
+	var/blooper_id
+	/// The speed of a blooper, which changes delays per sound.
+	var/blooper_speed = BLOOPER_SPEED_BASELINE
+	/// The base pitch of a blooper before variance.
+	var/blooper_pitch = 1
+	/// The Additional +/- pitch, modifies default pitch with the range in positive and negative directions.
+	var/blooper_pitch_range = 0.5
 
 // Make a copy of this strand.
 // USE THIS WHEN COPYING STUFF OR YOU'LL GET CORRUPTION!
@@ -52,13 +71,24 @@ GLOBAL_LIST_EMPTY(bad_blocks)
 	var/datum/dna/new_dna = new()
 	new_dna.unique_enzymes = unique_enzymes
 	new_dna.struc_enzymes_original = struc_enzymes_original // will make clone's SE the same as the original, do we want this?
+	new_dna.default_blocks = default_blocks
 	new_dna.blood_type = blood_type
 	new_dna.real_name = real_name
 	new_dna.species = new species.type
-	for(var/b=1;b<=DNA_SE_LENGTH;b++)
+	new_dna.flavor_text = flavor_text
+	new_dna.chat_color = chat_color
+	new_dna.blooper_id = blooper_id
+	new_dna.blooper_speed = blooper_speed
+	new_dna.blooper_pitch = blooper_pitch
+	new_dna.blooper_pitch_range = blooper_pitch_range
+
+	for(var/b = 1; b <= DNA_SE_LENGTH; b++)
 		new_dna.SE[b]=SE[b]
-		if(b<=DNA_UI_LENGTH)
-			new_dna.UI[b]=UI[b]
+		if(b <= DNA_UI_LENGTH)
+			if(b <= length(UI)) //We check index against the length of UI provided, because it may be shorter and thus be out of bounds
+				new_dna.UI[b]=UI[b]
+				continue
+			new_dna.UI[b] = 0
 	new_dna.UpdateUI()
 	new_dna.UpdateSE()
 	return new_dna
@@ -80,10 +110,10 @@ GLOBAL_LIST_EMPTY(bad_blocks)
 
 /datum/dna/proc/ResetUIFrom(mob/living/carbon/human/character)
 	// INITIALIZE!
-	ResetUI(1)
+	ResetUI(TRUE)
 	// Hair
 	// FIXME:  Species-specific defaults pls
-	var/obj/item/organ/external/head/H = character.get_organ("head")
+	var/obj/item/organ/external/head/head = character.get_organ("head")
 	var/obj/item/organ/internal/eyes/eyes_organ = character.get_int_organ(/obj/item/organ/internal/eyes)
 
 	/*// Body Accessory
@@ -99,41 +129,61 @@ GLOBAL_LIST_EMPTY(bad_blocks)
 	var/body_marks	= GLOB.marking_styles_list.Find(character.m_styles["body"])
 	var/tail_marks	= GLOB.marking_styles_list.Find(character.m_styles["tail"])
 
-	head_traits_to_dna(H)
+	head_traits_to_dna(character, head)
 	eye_color_to_dna(eyes_organ)
 
-	SetUIValueRange(DNA_UI_SKIN_R,		color2R(character.skin_colour),			255,	1)
-	SetUIValueRange(DNA_UI_SKIN_G,		color2G(character.skin_colour),			255,	1)
-	SetUIValueRange(DNA_UI_SKIN_B,		color2B(character.skin_colour),			255,	1)
+	SetUIValueRange(DNA_UI_SKIN_R,		color2R(character.skin_colour),			255,	TRUE)
+	SetUIValueRange(DNA_UI_SKIN_G,		color2G(character.skin_colour),			255,	TRUE)
+	SetUIValueRange(DNA_UI_SKIN_B,		color2B(character.skin_colour),			255,	TRUE)
 
-	SetUIValueRange(DNA_UI_HEAD_MARK_R,	color2R(character.m_colours["head"]),	255,	1)
-	SetUIValueRange(DNA_UI_HEAD_MARK_G,	color2G(character.m_colours["head"]),	255,	1)
-	SetUIValueRange(DNA_UI_HEAD_MARK_B,	color2B(character.m_colours["head"]),	255,	1)
+	SetUIValueRange(DNA_UI_HEAD_MARK_R,	color2R(character.m_colours["head"]),	255,	TRUE)
+	SetUIValueRange(DNA_UI_HEAD_MARK_G,	color2G(character.m_colours["head"]),	255,	TRUE)
+	SetUIValueRange(DNA_UI_HEAD_MARK_B,	color2B(character.m_colours["head"]),	255,	TRUE)
 
-	SetUIValueRange(DNA_UI_BODY_MARK_R,	color2R(character.m_colours["body"]),	255,	1)
-	SetUIValueRange(DNA_UI_BODY_MARK_G,	color2G(character.m_colours["body"]),	255,	1)
-	SetUIValueRange(DNA_UI_BODY_MARK_B,	color2B(character.m_colours["body"]),	255,	1)
+	SetUIValueRange(DNA_UI_BODY_MARK_R,	color2R(character.m_colours["body"]),	255,	TRUE)
+	SetUIValueRange(DNA_UI_BODY_MARK_G,	color2G(character.m_colours["body"]),	255,	TRUE)
+	SetUIValueRange(DNA_UI_BODY_MARK_B,	color2B(character.m_colours["body"]),	255,	TRUE)
 
-	SetUIValueRange(DNA_UI_TAIL_MARK_R,	color2R(character.m_colours["tail"]),	255,	1)
-	SetUIValueRange(DNA_UI_TAIL_MARK_G,	color2G(character.m_colours["tail"]),	255,	1)
-	SetUIValueRange(DNA_UI_TAIL_MARK_B,	color2B(character.m_colours["tail"]),	255,	1)
+	SetUIValueRange(DNA_UI_TAIL_MARK_R,	color2R(character.m_colours["tail"]),	255,	TRUE)
+	SetUIValueRange(DNA_UI_TAIL_MARK_G,	color2G(character.m_colours["tail"]),	255,	TRUE)
+	SetUIValueRange(DNA_UI_TAIL_MARK_B,	color2B(character.m_colours["tail"]),	255,	TRUE)
 
-	SetUIValueRange(DNA_UI_SKIN_TONE,	35-character.s_tone,	220,	1) // Value can be negative.
+	SetUIValueRange(DNA_UI_SKIN_TONE, abs(35 - character.s_tone),	220,	TRUE)
 
-	/*SetUIValueRange(DNA_UI_BACC_STYLE,	bodyacc,	GLOB.facial_hair_styles_list.len,	1)*/
-	SetUIValueRange(DNA_UI_HEAD_MARK_STYLE,	head_marks,		GLOB.marking_styles_list.len,		1)
-	SetUIValueRange(DNA_UI_BODY_MARK_STYLE,	body_marks,		GLOB.marking_styles_list.len,		1)
-	SetUIValueRange(DNA_UI_TAIL_MARK_STYLE,	tail_marks,		GLOB.marking_styles_list.len,		1)
+	SetUIValueRange(DNA_UI_HEAD_MARK_STYLE,	head_marks,	length(GLOB.marking_styles_list),		TRUE)
+	SetUIValueRange(DNA_UI_BODY_MARK_STYLE,	body_marks,	length(GLOB.marking_styles_list),		TRUE)
+	SetUIValueRange(DNA_UI_TAIL_MARK_STYLE,	tail_marks,	length(GLOB.marking_styles_list),		TRUE)
+
+	SetUIValueRange(DNA_UI_PHYSIQUE, GLOB.character_physiques.Find(character.physique), length(GLOB.character_physiques), TRUE)
+	SetUIValueRange(DNA_UI_HEIGHT, GLOB.character_heights.Find(character.height), length(GLOB.character_heights), TRUE)
+
+	SetUIValueRange(DNA_UI_BLOOPER_ID, GLOB.blooper_list.Find(character.blooper_id), length(GLOB.blooper_list), 1)
+	SetUIValueRange(DNA_UI_BLOOPER_SPEED, character.blooper_speed, BLOOPER_DEFAULT_MAXSPEED, 1)
+	SetUIValueRange(DNA_UI_BLOOPER_PITCH, character.blooper_pitch, BLOOPER_DEFAULT_MAXPITCH, 1)
+	SetUIValueRange(DNA_UI_BLOOPER_PITCH_RANGE, character.blooper_pitch_range, BLOOPER_DEFAULT_MAXVARY, 1)
+
+
+	var/list/bodyacc = GLOB.body_accessory_by_name.Find(character.body_accessory?.name || "None")
+	SetUIValueRange(DNA_UI_BACC_STYLE, bodyacc, length(GLOB.body_accessory_by_name), TRUE)
+
+	switch(character.body_type)
+		if(FEMALE)
+			SetUIState(DNA_UI_BODY_TYPE, DNA_GENDER_FEMALE, TRUE)
+		if(MALE)
+			SetUIState(DNA_UI_BODY_TYPE, DNA_GENDER_MALE, TRUE)
 
 	//Set the Gender
 	switch(character.gender)
 		if(FEMALE)
-			SetUITriState(DNA_UI_GENDER, DNA_GENDER_FEMALE, 1)
+			SetUITriState(DNA_UI_GENDER, DNA_GENDER_FEMALE, TRUE)
 		if(MALE)
-			SetUITriState(DNA_UI_GENDER, DNA_GENDER_MALE, 1)
+			SetUITriState(DNA_UI_GENDER, DNA_GENDER_MALE, TRUE)
 		if(PLURAL)
-			SetUITriState(DNA_UI_GENDER, DNA_GENDER_PLURAL, 1)
+			SetUITriState(DNA_UI_GENDER, DNA_GENDER_PLURAL, TRUE)
 
+	// updates DNA for our external and internal organs
+	for(var/obj/item/organ/organ in (character.bodyparts + character.internal_organs))
+		organ.dna.UI = character.dna.UI
 
 	UpdateUI()
 
@@ -151,6 +201,8 @@ GLOBAL_LIST_EMPTY(bad_blocks)
 // Get a DNA UI block's raw value.
 /datum/dna/proc/GetUIValue(block)
 	if(block <= 0)
+		return FALSE
+	if(block >= length(UI))
 		return FALSE
 	return UI[block]
 
@@ -224,7 +276,7 @@ GLOBAL_LIST_EMPTY(bad_blocks)
 
 // Get a hex-encoded UI block.
 /datum/dna/proc/GetUIBlock(block)
-	return EncodeDNABlock(GetUIValue(block))
+	return ENCODE_DNA_BLOCK(GetUIValue(block))
 
 // Do not use this unless you absolutely have to.
 // Set a block from a hex string.  This is inefficient.  If you can, use SetUIValue().
@@ -321,7 +373,7 @@ GLOBAL_LIST_EMPTY(bad_blocks)
 
 // Get hex-encoded SE block.
 /datum/dna/proc/GetSEBlock(block)
-	return EncodeDNABlock(GetSEValue(block))
+	return ENCODE_DNA_BLOCK(GetSEValue(block))
 
 // Do not use this unless you absolutely have to.
 // Set a block from a hex string.  This is inefficient.  If you can, use SetUIValue().
@@ -352,22 +404,22 @@ GLOBAL_LIST_EMPTY(bad_blocks)
 	//testing("SetSESubBlock([block],[subBlock],[newSubBlock],[defer]): [oldBlock] -> [newBlock]")
 	SetSEBlock(block, newBlock, defer)
 
-
-/proc/EncodeDNABlock(value)
-	return add_zero2(num2hex(value, 1), 3)
-
 /datum/dna/proc/UpdateUI()
+	var/list/ui_text_list = list()
 	uni_identity = ""
 	for(var/block in UI)
-		uni_identity += EncodeDNABlock(block)
+		ui_text_list += ENCODE_DNA_BLOCK(block)
+	uni_identity = ui_text_list.Join("")
 	//testing("New UI: [uni_identity]")
 	dirtyUI = 0
 
 /datum/dna/proc/UpdateSE()
 	//var/oldse=struc_enzymes
+	var/list/se_text_list = list()
 	struc_enzymes = ""
 	for(var/block in SE)
-		struc_enzymes += EncodeDNABlock(block)
+		se_text_list += ENCODE_DNA_BLOCK(block)
+	struc_enzymes = se_text_list.Join("")
 	//testing("Old SE: [oldse]")
 	//testing("New SE: [struc_enzymes]")
 	dirtySE = 0
@@ -376,7 +428,7 @@ GLOBAL_LIST_EMPTY(bad_blocks)
 //  Just checks our character has all the crap it needs.
 /datum/dna/proc/check_integrity(mob/living/carbon/human/character)
 	if(character)
-		if(UI.len != DNA_UI_LENGTH)
+		if(length(UI) != DNA_UI_LENGTH)
 			ResetUIFrom(character)
 
 		if(length(struc_enzymes)!= 3 * DNA_SE_LENGTH)
@@ -405,7 +457,6 @@ GLOBAL_LIST_EMPTY(bad_blocks)
 	SE_original = SE.Copy()
 
 	unique_enzymes = md5(character.real_name)
-	GLOB.reg_dna[unique_enzymes] = character.real_name
 
 // Hmm, I wonder how to go about this without a huge convention break
 /datum/dna/serialize()
@@ -417,6 +468,7 @@ GLOBAL_LIST_EMPTY(bad_blocks)
 	// Because old DNA coders were insane or something
 	data["blood_type"] = blood_type
 	data["real_name"] = real_name
+	data["flavor_text"] = flavor_text
 	return data
 
 /datum/dna/deserialize(data)
@@ -430,13 +482,14 @@ GLOBAL_LIST_EMPTY(bad_blocks)
 	species = new S
 	blood_type = data["blood_type"]
 	real_name = data["real_name"]
+	flavor_text = data["flavor_text"]
 
 /datum/dna/proc/transfer_identity(mob/living/carbon/human/destination)
 	if(!istype(destination))
 		return
 
 	// We manually set the species to ensure all proper species change procs are called.
-	destination.set_species(species.type, retain_damage = TRUE)
+	destination.set_species(species.type, retain_damage = TRUE, keep_missing_bodyparts = TRUE)
 	var/datum/dna/new_dna = Clone()
 	new_dna.species = destination.dna.species
 	destination.dna = new_dna

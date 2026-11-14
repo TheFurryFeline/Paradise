@@ -9,8 +9,9 @@
 	icon = 'icons/obj/device.dmi'
 	icon_state = "contractor_uplink"
 	w_class = WEIGHT_CLASS_SMALL
-	slot_flags = SLOT_BELT
+	slot_flags = ITEM_SLOT_BELT
 	origin_tech = "programming=5;syndicate=4" // Hackerman encryption
+	new_attack_chain = TRUE
 	/// The Contractor Hub associated with this uplink.
 	var/datum/contractor_hub/hub = null
 
@@ -19,8 +20,14 @@
 	QDEL_NULL(hub)
 	return ..()
 
-/obj/item/contractor_uplink/attack_self(mob/user)
+/obj/item/contractor_uplink/activate_self(mob/user)
+	if(..())
+		return ITEM_INTERACT_COMPLETE
+	if(!hub)
+		to_chat(user, SPAN_WARNING("The only thing onscreen is a failed connection notice..."))
+		return ITEM_INTERACT_COMPLETE
 	hub.ui_interact(user)
+	return ITEM_INTERACT_COMPLETE
 
 /**
   * Sends a message to the mob holding this item.
@@ -36,7 +43,7 @@
 	if(!istype(M))
 		return
 
-	to_chat(M, "<span class='notice'>[bicon(src)] Incoming encrypted transmission from your handlers. Message as follows:</span><br />"\
-			 + "<span class='boldnotice'>[text]</span>")
+	to_chat(M, "[SPAN_NOTICE("[bicon(src)] Incoming encrypted transmission from your handlers. Message as follows:")]<br />"\
+			+ SPAN_BOLDNOTICE("[text]"))
 	if(sndfile)
 		M.playsound_local(get_turf(M), sndfile, 30, FALSE, use_reverb = FALSE)

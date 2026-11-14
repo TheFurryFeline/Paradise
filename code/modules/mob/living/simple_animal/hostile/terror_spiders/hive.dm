@@ -6,8 +6,6 @@
 	to_chat(src, "Your Brood: ")
 	for(var/thing in GLOB.ts_spiderlist)
 		var/mob/living/simple_animal/hostile/poison/terror_spider/T = thing
-		if(T.spider_awaymission != spider_awaymission)
-			continue
 		hsline = "* [T] in [get_area(T)], "
 		if(T.stat == DEAD)
 			hsline += "DEAD"
@@ -23,7 +21,7 @@
 	var/numspiders = 0
 	for(var/thing in GLOB.ts_spiderlist)
 		var/mob/living/simple_animal/hostile/poison/terror_spider/T = thing
-		if(T.stat != DEAD && !T.spider_placed && spider_awaymission == T.spider_awaymission)
+		if(T.stat != DEAD && !T.spider_placed)
 			numspiders += 1
 	return numspiders
 
@@ -34,7 +32,7 @@
 		spider_totals[thistype] = 0
 	for(var/thing in GLOB.ts_spiderlist)
 		var/mob/living/simple_animal/hostile/poison/terror_spider/T = thing
-		if(T.stat == DEAD || T.spider_placed || spider_awaymission != T.spider_awaymission)
+		if(T.stat == DEAD || T.spider_placed)
 			continue
 		if(check_mine && T.spider_myqueen != src)
 			continue
@@ -58,8 +56,7 @@
 		else
 			spider_totals[E.spiderling_type] = E.spiderling_number
 		spider_totals["all"] += E.spiderling_number
-	for(var/thing in GLOB.ts_spiderling_list)
-		var/obj/structure/spider/spiderling/terror_spiderling/L = thing
+	for(var/mob/living/basic/spiderling/terror_spiderling/L in GLOB.ts_spiderling_list)
 		if(L.stillborn)
 			continue
 		if(check_mine && L.spider_myqueen != src)

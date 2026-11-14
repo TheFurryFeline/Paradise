@@ -1,15 +1,11 @@
-/client/proc/admin_memo()
-	set name = "Memo"
-	set category = "Server"
-	if(!check_rights(R_SERVER))
-		return
+USER_VERB(server_memo, R_SERVER, "Memo", "View and modify server memos.", VERB_CATEGORY_SERVER)
 	if(!SSdbcore.IsConnected())
-		to_chat(src, "<span class='danger'>Failed to establish database connection.</span>")
+		to_chat(client, SPAN_DANGER("Failed to establish database connection."))
 		return
-	var/memotask = input(usr,"Choose task.","Memo") in list("Show","Write","Edit","Remove")
+	var/memotask = input(client, "Choose task.", "Memo") in list("Show", "Write", "Edit", "Remove")
 	if(!memotask)
 		return
-	admin_memo_output(memotask)
+	client.admin_memo_output(memotask)
 
 /client/proc/admin_memo_output(task, checkrights = 1, silent = 0)
 	if(checkrights && !check_rights(R_SERVER))
@@ -17,12 +13,12 @@
 	if(!task)
 		return
 	if(!SSdbcore.IsConnected())
-		to_chat(src, "<span class='danger'>Failed to establish database connection.</span>")
+		to_chat(src, SPAN_DANGER("Failed to establish database connection."))
 		return
 	switch(task)
 		if("Write")
 			var/datum/db_query/query_memocheck = SSdbcore.NewQuery(
-				"SELECT ckey FROM [format_table_name("memo")] WHERE ckey=:ckey",
+				"SELECT ckey FROM memo WHERE ckey=:ckey",
 				list("ckey" = ckey)
 			)
 
@@ -41,7 +37,7 @@
 				return
 
 			var/datum/db_query/query_memoadd = SSdbcore.NewQuery(
-				"INSERT INTO [format_table_name("memo")] (ckey, memotext, timestamp) VALUES (:ckey, :memotext, NOW())",
+				"INSERT INTO memo (ckey, memotext, timestamp) VALUES (:ckey, :memotext, NOW())",
 				list(
 					"ckey" = ckey,
 					"memotext" = memotext
@@ -57,7 +53,7 @@
 			qdel(query_memoadd)
 
 		if("Edit")
-			var/datum/db_query/query_memolist = SSdbcore.NewQuery("SELECT ckey FROM [format_table_name("memo")]")
+			var/datum/db_query/query_memolist = SSdbcore.NewQuery("SELECT ckey FROM memo")
 
 			if(!query_memolist.warn_execute())
 				qdel(query_memolist)
@@ -78,7 +74,7 @@
 				return
 
 			var/datum/db_query/query_memofind = SSdbcore.NewQuery(
-				"SELECT memotext FROM [format_table_name("memo")] WHERE ckey=:ckey",
+				"SELECT memotext FROM memo WHERE ckey=:ckey",
 				list("ckey" = target_ckey)
 			)
 
@@ -96,7 +92,7 @@
 				var/edit_text = "Edited by [target_ckey] on [SQLtime()] from<br>[old_memo]<br>to<br>[new_memo]<hr>"
 
 				var/datum/db_query/update_query = SSdbcore.NewQuery(
-					"UPDATE [format_table_name("memo")] SET memotext=:newmemo, last_editor=:lasteditor, edits=CONCAT(IFNULL(edits,''),:edittext) WHERE ckey=:targetckey",
+					"UPDATE memo SET memotext=:newmemo, last_editor=:lasteditor, edits=CONCAT(IFNULL(edits,''),:edittext) WHERE ckey=:targetckey",
 					list(
 						"newmemo" = new_memo,
 						"lasteditor" = ckey,
@@ -120,7 +116,7 @@
 			qdel(query_memofind)
 
 		if("Show")
-			var/datum/db_query/query_memoshow = SSdbcore.NewQuery("SELECT ckey, memotext, timestamp, last_editor FROM [format_table_name("memo")]")
+			var/datum/db_query/query_memoshow = SSdbcore.NewQuery("SELECT ckey, memotext, timestamp, last_editor FROM memo")
 			if(!query_memoshow.warn_execute())
 				qdel(query_memoshow)
 				return
@@ -130,9 +126,9 @@
 				var/memotext = query_memoshow.item[2]
 				var/timestamp = query_memoshow.item[3]
 				var/last_editor = query_memoshow.item[4]
-				output += "<span class='memo'>Memo by <span class='prefix'>[ckey]</span> on [timestamp]"
+				output += "[SPAN_MEMO("Memo by <span class='prefix'>[ckey]")] on [timestamp]"
 				if(last_editor)
-					output += "<br><span class='memoedit'>Last edit by [last_editor] <A href='?_src_=holder;memoeditlist=[ckey]'>(Click here to see edit log)</A></span>"
+					output += "<br>[SPAN_MEMOEDIT("Last edit by [last_editor] <A href='byond://?_src_=holder;memoeditlist=[ckey]'>(Click here to see edit log)</A>")]"
 				output += "<br>[memotext]</span><br>"
 			if(output)
 				to_chat(src, output)
@@ -141,7 +137,7 @@
 			qdel(query_memoshow)
 
 		if("Remove")
-			var/datum/db_query/query_memodellist = SSdbcore.NewQuery("SELECT ckey FROM [format_table_name("memo")]")
+			var/datum/db_query/query_memodellist = SSdbcore.NewQuery("SELECT ckey FROM memo")
 			if(!query_memodellist.warn_execute())
 				qdel(query_memodellist)
 				return
@@ -152,7 +148,7 @@
 				memolist += "[ckey]"
 
 			qdel(query_memodellist)
-			if(!memolist.len)
+			if(!length(memolist))
 				to_chat(src, "No memos found in database.")
 				return
 
@@ -161,7 +157,7 @@
 				return
 
 			var/datum/db_query/query_memodel = SSdbcore.NewQuery(
-				"DELETE FROM [format_table_name("memo")] WHERE ckey=:ckey",
+				"DELETE FROM memo WHERE ckey=:ckey",
 				list("ckey" = target_ckey)
 			)
 

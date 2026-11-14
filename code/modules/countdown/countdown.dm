@@ -5,8 +5,7 @@
 		And maybe we'll come back\n\
 		To earth, who can tell?"
 
-	invisibility = INVISIBILITY_OBSERVER
-	anchored = TRUE
+	invisibility = INVISIBILITY_HIGH
 	layer = MASSIVE_OBJ_LAYER
 	color = "#ff0000" // text color
 	var/text_size = 3 // larger values clip when the displayed text is larger than 2 digits.
@@ -17,6 +16,7 @@
 /obj/effect/countdown/Initialize(mapload)
 	. = ..()
 	attach(loc)
+	RegisterSignal(attached_to, COMSIG_MOVABLE_MOVED, PROC_REF(countdown_on_move))
 
 /obj/effect/countdown/examine(mob/user)
 	. = ..()
@@ -37,14 +37,19 @@
 		STOP_PROCESSING(SSfastprocess, src)
 		started = FALSE
 
+/// Get the value from our atom
 /obj/effect/countdown/proc/get_value()
-	// Get the value from our atom
 	return
+
+/obj/effect/countdown/proc/countdown_on_move()
+	SIGNAL_HANDLER
+	forceMove(get_turf(attached_to))
 
 /obj/effect/countdown/process()
 	if(!attached_to || QDELETED(attached_to))
 		qdel(src)
-	forceMove(get_turf(attached_to))
+	if(!isturf(attached_to.loc)) // When in crates, lockers, etc. countdown_on_move wont be called. This is our backup
+		forceMove(get_turf(attached_to))
 	var/new_val = get_value()
 	if(new_val == displayed_text)
 		return
@@ -87,9 +92,8 @@
 	var/obj/machinery/clonepod/C = attached_to
 	if(!istype(C))
 		return
-	else if(C.occupant)
-		var/completion = round(C.get_completion())
-		return completion
+
+	return C.clone_progress
 
 /obj/effect/countdown/supermatter
 	name = "supermatter damage"
@@ -97,7 +101,7 @@
 	color = "#00ff80"
 
 /obj/effect/countdown/supermatter/get_value()
-	var/obj/machinery/power/supermatter_crystal/S = attached_to
+	var/obj/machinery/atmospherics/supermatter_crystal/S = attached_to
 	if(!istype(S))
 		return
 	return "<div align='center' valign='middle' style='position:relative; top:0px; left:0px'>[round(S.get_integrity(), 1)]%</div>"
@@ -111,3 +115,13 @@
 		return
 	var/time_left = max(0, (A.death_time - world.time) / 10)
 	return round(time_left)
+
+/obj/effect/countdown/flock
+	name = "flock relay countdown"
+	text_size = 1
+
+/obj/effect/countdown/flock/get_value()
+	var/obj/structure/flock/relay/R = attached_to
+	if(!istype(R))
+		return
+	return "<div align='center' valign='middle' style='position:relative; top:0px; left:0px'>[round_down((R.started_time + R.win_time - world.time) / 10)]</div>"

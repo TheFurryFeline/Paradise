@@ -1,8 +1,18 @@
 /datum/event/spawn_slaughter
+	name = "Slaughter Demon"
+	noAutoEnd = TRUE
 	var/key_of_slaughter
+	var/mob/living/basic/demon/demon = /mob/living/basic/demon/slaughter/lesser
+	nominal_severity = EVENT_LEVEL_MAJOR
+	role_weights = list(ASSIGNMENT_SECURITY = 5, ASSIGNMENT_JANITOR = 5, ASSIGNMENT_MEDICAL = 3, ASSIGNMENT_CREW = 0.7)
+	role_requirements = list(ASSIGNMENT_SECURITY = 4, ASSIGNMENT_JANITOR = 1, ASSIGNMENT_MEDICAL = 2, ASSIGNMENT_CREW = 25)
+
+/datum/event/spawn_slaughter/tick()
+	if(!demon || demon.stat == DEAD)
+		kill()
 
 /datum/event/spawn_slaughter/proc/get_slaughter()
-	var/list/candidates = SSghost_spawns.poll_candidates("Do you want to play as a slaughter demon?", ROLE_DEMON, TRUE, source = /mob/living/simple_animal/slaughter)
+	var/list/candidates = SSghost_spawns.poll_candidates("Do you want to play as a [initial(demon.name)]?", ROLE_DEMON, TRUE, source = demon)
 	if(!length(candidates))
 		kill()
 		return
@@ -16,33 +26,47 @@
 
 	var/datum/mind/player_mind = new /datum/mind(key_of_slaughter)
 	player_mind.active = TRUE
-	var/list/spawn_locs = list()
-	for(var/thing in GLOB.landmarks_list)
-		var/obj/effect/landmark/L = thing
-		if(isturf(L.loc))
-			switch(L.name)
-				if("revenantspawn")
-					spawn_locs += L.loc
-	if(!spawn_locs) //If we can't find any revenant spawns, try the carp spawns
-		for(var/thing in GLOB.landmarks_list)
-			var/obj/effect/landmark/L = thing
-			if(isturf(L.loc))
-				switch(L.name)
-					if("carpspawn")
-						spawn_locs += L.loc
-	if(!spawn_locs) //If we can't find either, just spawn the revenant at the player's location
-		spawn_locs += get_turf(player_mind.current)
-	if(!spawn_locs) //If we can't find THAT, then just retry
+	dust_if_respawnable(C)
+	var/turf/spawn_loc = get_spawn_loc(player_mind.current)
+	var/obj/effect/dummy/slaughter/holder = new /obj/effect/dummy/slaughter(spawn_loc)
+	var/mob/living/basic/demon/S = new demon(holder)
+	player_mind.transfer_to(S)
+	player_mind.assigned_role = "Demon"
+	player_mind.special_role = SPECIAL_ROLE_DEMON
+	message_admins("[key_name_admin(S)] has been made into a [S.name] by an event.")
+	log_game("[key_name_admin(S)] was spawned as a [S.name] by an event.")
+
+/datum/event/spawn_slaughter/proc/get_spawn_loc(mob/player)
+	RETURN_TYPE(/turf)
+	var/list/spawn_centers = list()
+	for(var/obj/effect/landmark/spawner/rev/L in GLOB.landmarks_list)
+		spawn_centers += get_turf(L)
+	if(!spawn_centers) //If we can't find a good place, just spawn the revenant at the player's location
+		spawn_centers += get_turf(player)
+	if(!spawn_centers) //If we can't find THAT, then give up
 		kill()
 		return
-	var/obj/effect/dummy/slaughter/holder = new /obj/effect/dummy/slaughter(pick(spawn_locs))
-	var/mob/living/simple_animal/slaughter/S = new /mob/living/simple_animal/slaughter/(holder)
-	S.holder = holder
-	player_mind.transfer_to(S)
-	player_mind.assigned_role = "Slaughter Demon"
-	player_mind.special_role = SPECIAL_ROLE_SLAUGHTER_DEMON
-	message_admins("[key_name_admin(S)] has been made into a Slaughter Demon by an event.")
-	log_game("[key_name_admin(S)] was spawned as a Slaughter Demon by an event.")
+	return pick(spawn_centers)
+
 
 /datum/event/spawn_slaughter/start()
-	INVOKE_ASYNC(src, .proc/get_slaughter)
+	INVOKE_ASYNC(src, PROC_REF(get_slaughter))
+
+/datum/event/spawn_slaughter/greater
+	name = "Greater Slaughter Demon"
+	demon = /mob/living/basic/demon/slaughter
+
+/datum/event/spawn_slaughter/shadow
+	name = "Shadow Demon"
+	demon = /mob/living/basic/demon/shadow
+	// Same as slaughter but without Jani
+	role_weights = list(ASSIGNMENT_SECURITY = 5, ASSIGNMENT_MEDICAL = 3, ASSIGNMENT_CREW = 0.7)
+	role_requirements = list(ASSIGNMENT_SECURITY = 4, ASSIGNMENT_MEDICAL = 2, ASSIGNMENT_CREW = 25)
+
+/datum/event/spawn_slaughter/shadow/get_spawn_loc()
+	var/turf/spawn_center = ..()
+	for(var/turf/T in range(50, spawn_center))
+		if(T.get_lumcount()) // if the turf is not pitch black
+			continue
+		return T // return the first turf that is dark nearby.
+	kill()

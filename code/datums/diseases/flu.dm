@@ -9,14 +9,15 @@
 	viable_mobtypes = list(/mob/living/carbon/human, /mob/living/carbon/human/monkey)
 	permeability_mod = 0.75
 	desc = "If left untreated the subject will feel quite unwell."
-	severity = MEDIUM
+	severity = VIRUS_MINOR
 
 /datum/disease/flu/stage_act()
-	..()
+	if(!..())
+		return FALSE
 	switch(stage)
 		if(2)
-			if(affected_mob.lying && prob(20))
-				to_chat(affected_mob, "<span class='notice'>You feel better.</span>")
+			if(IS_HORIZONTAL(affected_mob) && prob(20))
+				to_chat(affected_mob, SPAN_NOTICE("You feel better."))
 				stage--
 				return
 			if(prob(1))
@@ -24,17 +25,17 @@
 			if(prob(1))
 				affected_mob.emote("cough")
 			if(prob(1))
-				to_chat(affected_mob, "<span class='danger'>Your muscles ache.</span>")
+				to_chat(affected_mob, SPAN_DANGER("Your muscles ache."))
 				if(prob(20))
 					affected_mob.take_organ_damage(1)
 			if(prob(1))
-				to_chat(affected_mob, "<span class='danger'>Your stomach hurts.</span>")
+				to_chat(affected_mob, SPAN_DANGER("Your stomach hurts."))
 				if(prob(20))
 					affected_mob.adjustToxLoss(1)
 
 		if(3)
-			if(affected_mob.lying && prob(15))
-				to_chat(affected_mob, "<span class='notice'>You feel better.</span>")
+			if(IS_HORIZONTAL(affected_mob) && prob(15))
+				to_chat(affected_mob, SPAN_NOTICE("You feel better."))
 				stage--
 				return
 			if(prob(1))
@@ -42,11 +43,11 @@
 			if(prob(1))
 				affected_mob.emote("cough")
 			if(prob(1))
-				to_chat(affected_mob, "<span class='danger'>Your muscles ache.</span>")
+				to_chat(affected_mob, SPAN_DANGER("Your muscles ache."))
 				if(prob(20))
 					affected_mob.take_organ_damage(1)
 			if(prob(1))
-				to_chat(affected_mob, "<span class='danger'>Your stomach hurts.</span>")
+				to_chat(affected_mob, SPAN_DANGER("Your stomach hurts."))
 				if(prob(20))
 					affected_mob.adjustToxLoss(1)
 	return

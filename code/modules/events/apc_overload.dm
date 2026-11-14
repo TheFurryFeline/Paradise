@@ -1,6 +1,10 @@
 #define APC_BREAK_PROBABILITY 25 // the probability that a given APC will be broken
 
 /datum/event/apc_overload
+	name = "APC Overload"
+	nominal_severity = EVENT_LEVEL_MAJOR
+	role_weights = list(ASSIGNMENT_ENGINEERING = 4, ASSIGNMENT_CREW = 0.5)
+	role_requirements = list(ASSIGNMENT_ENGINEERING = 5, ASSIGNMENT_CREW = 30)
 	var/const/announce_after_mc_ticks     = 5
 	var/const/delayed                     = FALSE
 	var/const/event_max_duration_mc_ticks = announce_after_mc_ticks * 2
@@ -9,7 +13,7 @@
 	announceWhen = announce_after_mc_ticks
 
 /datum/event/apc_overload/setup()
-	endWhen = rand(event_min_duration_mc_ticks, event_max_duration_mc_ticks)
+	endWhen = rand(event_min_duration_mc_ticks, event_max_duration_mc_ticks) + 2700
 
 /datum/event/apc_overload/start()
 	apc_overload_failure(announce=delayed)
@@ -21,19 +25,19 @@
 		SEND_SOUND(M, S)
 
 /datum/event/apc_overload/announce()
-	GLOB.event_announcement.Announce("Overload detected in [station_name()]'s powernet. Engineering, please check all underfloor APC terminals.", "Critical Power Failure", new_sound = 'sound/AI/attention.ogg')
+	GLOB.minor_announcement.Announce("Overload detected in [station_name()]'s powernet. Engineering, please check all underfloor APC terminals.", "Critical Power Failure", 'sound/AI/power_overload.ogg')
 
 /datum/event/apc_overload/end()
 	return TRUE
 
 /proc/apc_overload_failure(announce=TRUE)
 	var/list/skipped_areas_apc = list(
-		/area/engine/engineering,
-		/area/engine/supermatter,
-		/area/turret_protected/ai)
+		/area/station/engineering/engine,
+		/area/station/engineering/engine/supermatter,
+		/area/station/turret_protected/ai)
 
 	if(announce)
-		GLOB.event_announcement.Announce("Overload detected in [station_name()]'s powernet. Engineering, please check all underfloor APC terminals.", "Critical Power Failure", new_sound = 'sound/AI/attention.ogg')
+		GLOB.minor_announcement.Announce("Overload detected in [station_name()]'s powernet. Engineering, please check all underfloor APC terminals.", "Critical Power Failure", 'sound/AI/power_overload.ogg')
 
 	// break APC_BREAK_PROBABILITY% of all of the APCs on the station
 	var/affected_apc_count = 0
@@ -58,7 +62,7 @@
 			if(C.operating)
 				C.toggle_breaker()
 			// no matter what, ensure the area knows something happened to the power
-			current_area.power_change()
+			current_area.powernet.power_change()
 			affected_apc_count++
 	log_and_message_admins("APC Overload event deleted [affected_apc_count] underfloor APC terminals.")
 

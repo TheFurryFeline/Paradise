@@ -1,21 +1,20 @@
 /obj/item/clothing/gloves/ring
 	name = "iron ring"
-	desc = "A band that goes around your finger.  It's considered gauche to wear more than one."
-	gender = "neuter" // not plural anymore
-	transfer_prints = TRUE
-	icon_state = "ironring"
-	item_state = ""
+	desc = "A band that goes around your finger. It's considered gauche to wear more than one."
 	icon = 'icons/obj/clothing/rings.dmi'
+	icon_state = "ironring"
+	gender = NEUTER // not plural anymore
+	transfer_prints = TRUE
 	var/fluff_material = FALSE	//If true, will ignore the material when examining
 	var/material = "iron"
-	var/stud = 0
+	var/stud = FALSE
 	var/ring_color = "iron"
 
-/obj/item/clothing/gloves/ring/New()
-	..()
-	update_icon()
+/obj/item/clothing/gloves/ring/Initialize(mapload)
+	. = ..()
+	update_icon(UPDATE_ICON_STATE)
 
-/obj/item/clothing/gloves/ring/update_icon()
+/obj/item/clothing/gloves/ring/update_icon_state()
 	icon_state = "[stud ? "d_" : ""][ring_color]ring"
 
 /obj/item/clothing/gloves/ring/examine(mob/user)
@@ -25,17 +24,18 @@
 	if(stud)
 		. += "It is adorned with a single gem."
 
-/obj/item/clothing/gloves/ring/attackby(obj/item/I as obj, mob/user as mob, params)
-	if(istype(I, /obj/item/stack/sheet/mineral/diamond))
-		var/obj/item/stack/sheet/mineral/diamond/D = I
-		if(stud)
-			to_chat(usr, "<span class='notice'>The [src] already has a gem.</span>")
-		else
-			if(D.amount >= 1)
-				D.use(1)
-				stud = 1
-				update_icon()
-				to_chat(usr, "<span class='notice'>You socket the diamond into the [src].</span>")
+/obj/item/clothing/gloves/ring/item_interaction(mob/living/user, obj/item/used, list/modifiers)
+	if(!istype(used, /obj/item/stack/sheet/mineral/diamond))
+		return ..()
+
+	var/obj/item/stack/sheet/mineral/diamond/D = used
+	if(stud)
+		to_chat(usr, SPAN_NOTICE("[src] already has a gem."))
+	else if(D.use(1))
+		stud = TRUE
+		update_icon(UPDATE_ICON_STATE)
+		to_chat(usr, SPAN_NOTICE("You socket the diamond into [src]."))
+	return ITEM_INTERACT_COMPLETE
 
 // s'pensive
 /obj/item/clothing/gloves/ring/silver
@@ -44,7 +44,8 @@
 	material = "silver"
 	ring_color = "silver"
 
-/obj/item/clothing/gloves/ring/silver/blessed // todo
+/// todo
+/obj/item/clothing/gloves/ring/silver/blessed
 	name = "blessed silver ring"
 
 /obj/item/clothing/gloves/ring/gold
@@ -73,10 +74,10 @@
 	icon_state = "redring"
 	ring_color = "red"
 
-/obj/item/clothing/gloves/ring/plastic/random/New()
+/obj/item/clothing/gloves/ring/plastic/random/Initialize(mapload)
 	ring_color = pick("white","blue","red")
 	name = "[ring_color] plastic ring"
-	..()
+	. = ..()
 
 // weird
 /obj/item/clothing/gloves/ring/glass
@@ -103,3 +104,11 @@
 	icon_state = "shadowring"
 	material = "shadows"
 	ring_color = "shadow"
+
+/obj/item/clothing/gloves/ring/white_diamond
+	name = "white diamond ring"
+	desc = "A small silver ring with a large light blue diamond. Someone's a big spender."
+	icon_state = "d_whitering"
+	material = "silver"
+	stud = TRUE
+	ring_color = "white"

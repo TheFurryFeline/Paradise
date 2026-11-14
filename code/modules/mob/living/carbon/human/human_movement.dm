@@ -1,25 +1,8 @@
 /mob/living/carbon/human/movement_delay()
 	. = 0
 	. += ..()
-	. += config.human_delay
+	. += GLOB.configuration.movement.human_delay
 	. += dna.species.movement_delay(src)
-
-/mob/living/carbon/human/Process_Spacemove(movement_dir = 0)
-
-	if(..())
-		return 1
-
-	//Do we have a working jetpack?
-	var/obj/item/tank/jetpack/thrust
-	if(istype(back, /obj/item/tank/jetpack))
-		thrust = back
-	else if(istype(wear_suit, /obj/item/clothing/suit/space/hardsuit))
-		var/obj/item/clothing/suit/space/hardsuit/C = wear_suit
-		thrust = C.jetpack
-	if(thrust)
-		if((movement_dir || thrust.stabilizers) && thrust.allow_thrust(0.01, src))
-			return 1
-	return 0
 
 /mob/living/carbon/human/mob_has_gravity()
 	. = ..()
@@ -28,12 +11,12 @@
 			. = 1
 
 /mob/living/carbon/human/mob_negates_gravity()
-	return shoes && shoes.negates_gravity()
+	return HAS_TRAIT(src, TRAIT_MAGPULSE)
 
 /mob/living/carbon/human/Move(NewLoc, direct)
 	. = ..()
 	if(.) // did we actually move?
-		if(!lying && !buckled && !throwing)
+		if(!IS_HORIZONTAL(src) && !buckled && !throwing)
 			for(var/obj/item/organ/external/splinted in splinted_limbs)
 				splinted.update_splints()
 
@@ -42,16 +25,11 @@
 
 	var/obj/item/clothing/shoes/S = shoes
 
-	if(S && !lying && loc == NewLoc)
+	if(S && !IS_HORIZONTAL(src) && loc == NewLoc)
 		SEND_SIGNAL(S, COMSIG_SHOES_STEP_ACTION)
 
 	//Bloody footprints
 	var/turf/T = get_turf(src)
-	var/obj/item/organ/external/l_foot = get_organ("l_foot")
-	var/obj/item/organ/external/r_foot = get_organ("r_foot")
-	var/hasfeet = TRUE
-	if(!l_foot && !r_foot)
-		hasfeet = FALSE
 
 	if(shoes)
 		if(S.bloody_shoes && S.bloody_shoes[S.blood_state])
@@ -63,8 +41,9 @@
 			if(S.bloody_shoes[S.blood_state] > BLOOD_LOSS_IN_SPREAD)
 				createFootprintsFrom(shoes, dir, T)
 			update_inv_shoes()
-	else if(hasfeet)
-		if(bloody_feet && bloody_feet[blood_state])
+	else if(bloody_feet && bloody_feet[blood_state])
+		// No feet, no footprints. Only looked up when there's blood, since this runs every step
+		if(get_organ("l_foot") || get_organ("r_foot"))
 			for(var/obj/effect/decal/cleanable/blood/footprints/oldFP in T)
 				if(oldFP && oldFP.blood_state == blood_state && oldFP.basecolor == feet_blood_color)
 					return

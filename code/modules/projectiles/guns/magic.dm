@@ -3,34 +3,52 @@
 	desc = "This staff is boring to watch because even though it came first you've seen everything it can do in other staves for years."
 	icon = 'icons/obj/guns/magic.dmi'
 	icon_state = "staffofnothing"
-	item_state = "staff"
+	inhand_icon_state = "staff"
+	lefthand_file = 'icons/mob/inhands/staves_lefthand.dmi'
+	righthand_file = 'icons/mob/inhands/staves_righthand.dmi'
 	fire_sound = 'sound/weapons/emitter.ogg'
 	fire_sound_text = "energy blast"
-	flags =  CONDUCT
 	w_class = WEIGHT_CLASS_HUGE
 	var/max_charges = 6
 	var/charges = 0
 	var/recharge_rate = 4
 	var/charge_tick = 0
-	var/can_charge = 1
+	var/can_charge = TRUE
 	var/ammo_type
 	var/no_den_usage
+	var/antimagic_flags = MAGIC_RESISTANCE
 	origin_tech = null
-	clumsy_check = 0
+	clumsy_check = FALSE
 	trigger_guard = TRIGGER_GUARD_ALLOW_ALL // Has no trigger at all, uses magic instead
 
-	lefthand_file = 'icons/mob/inhands/items_lefthand.dmi' //not really a gun and some toys use these inhands
-	righthand_file = 'icons/mob/inhands/items_righthand.dmi'
+// Allows you to shoot yourself by aiming at any bodypart. Useful for stuff like the wand of resurrection or teleportation.
+/obj/item/gun/magic/interact_with_atom(atom/target, mob/living/user, list/modifiers)
+	if(is_gun_busy(target, user))
+		return ITEM_INTERACT_COMPLETE
 
-/obj/item/gun/magic/afterattack(atom/target, mob/living/user, flag)
+	if(target == user)
+		if(user.zone_selected == "mouth") // Allow the user to stick the wand in their mouth for dramatic effect if they want to.
+			handle_suicide(user, target, list2params(modifiers))
+		else
+			try_to_shoot_gun(target, user)
+		return ITEM_INTERACT_COMPLETE
+	
+	return ..()
+
+/obj/item/gun/magic/try_to_shoot_gun(atom/target, mob/living/user, proximity)
 	if(no_den_usage)
 		var/area/A = get_area(user)
 		if(istype(A, /area/wizard_station))
-			to_chat(user, "<span class='warning'>You know better than to violate the security of The Den, best wait until you leave to use [src].</span>")
+			to_chat(user, SPAN_WARNING("You know better than to violate the security of The Den, best wait until you leave to use [src]."))
 			return
 		else
-			no_den_usage = 0
-	..()
+			no_den_usage = FALSE
+
+	if(!user.can_cast_magic(antimagic_flags))
+		to_chat(user, SPAN_WARNING("[src] whizzles quietly."))
+		return
+
+	return ..(target, user, proximity)
 
 /obj/item/gun/magic/can_shoot()
 	return charges
@@ -49,10 +67,10 @@
 		charges--//... drain a charge
 	return
 
-/obj/item/gun/magic/New()
-	..()
+/obj/item/gun/magic/Initialize(mapload)
+	. = ..()
 	charges = max_charges
-	chambered = new ammo_type(src)
+	chambered = new ammo_type(src, src)
 	if(can_charge)
 		START_PROCESSING(SSobj, src)
 
@@ -64,21 +82,27 @@
 
 
 /obj/item/gun/magic/process()
-	charge_tick++
-	if(charge_tick < recharge_rate || charges >= max_charges)
-		return 0
-	charge_tick = 0
-	charges++
-	return 1
+	// Don't start recharging until we lose a charge
+	if(charges >= max_charges)
+		charge_tick = 0
+		return FALSE
 
-/obj/item/gun/magic/update_icon()
+	charge_tick++
+	if(charge_tick >= recharge_rate)
+		charge_tick = 0
+		charges++
+		return TRUE
+	else
+		return FALSE
+
+/obj/item/gun/magic/update_icon_state()
 	return
 
 /obj/item/gun/magic/shoot_with_empty_chamber(mob/living/user as mob|obj)
-	to_chat(user, "<span class='warning'>The [name] whizzles quietly.</span>")
+	to_chat(user, SPAN_WARNING("[src] whizzles quietly."))
 	return
 
 /obj/item/gun/magic/suicide_act(mob/user)
-	user.visible_message("<span class='suicide'>[user] is twisting the [name] above [user.p_their()] head, releasing a magical blast! It looks like [user.p_theyre()] trying to commit suicide.</span>")
-	playsound(loc, fire_sound, 50, 1, -1)
+	user.visible_message(SPAN_SUICIDE("[user] is twisting [src] above [user.p_their()] head, releasing a magical blast! It looks like [user.p_theyre()] trying to commit suicide!"))
+	playsound(loc, fire_sound, 50, TRUE, -1)
 	return FIRELOSS

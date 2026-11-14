@@ -9,8 +9,6 @@
 	var/instability = 0
 	/// Trait to give, if any
 	var/traits_to_add = list()
-	/// Activation probability
-	var/activation_prob = 100
 	/// Possible activation messages
 	var/list/activation_messages = list()
 	/// Possible deactivation messages
@@ -24,30 +22,31 @@
 // Return TRUE if we can activate.
 // HANDLE MUTCHK_FORCED HERE!
 /datum/mutation/proc/can_activate(mob/M, flags)
-	if(flags & MUTCHK_FORCED)
-		return TRUE
-	// Probability check
-	return prob(activation_prob)
+	return TRUE
 
 // Called when the gene activates.  Do your magic here.
 /datum/mutation/proc/activate(mob/living/M)
+	SHOULD_CALL_PARENT(TRUE)
 	M.gene_stability -= instability
+	M.active_mutations |= type // |= is probably not required but just in case
 	for(var/thing in traits_to_add)
 		ADD_TRAIT(M, thing, GENETIC_MUTATION)
 	if(length(activation_messages))
 		var/msg = pick(activation_messages)
-		to_chat(M, "<span class='notice'>[msg]</span>")
+		to_chat(M, SPAN_NOTICE("[msg]"))
 
 
 // Called when the gene deactivates.  Undo your magic here.
 // Only called when the block is deactivated.
 /datum/mutation/proc/deactivate(mob/living/M)
+	SHOULD_CALL_PARENT(TRUE)
 	M.gene_stability += instability
+	M.active_mutations -= type
 	for(var/thing in traits_to_add)
 		REMOVE_TRAIT(M, thing, GENETIC_MUTATION)
 	if(length(deactivation_messages))
 		var/msg = pick(deactivation_messages)
-		to_chat(M, "<span class='warning'>[msg]</span>")
+		to_chat(M, SPAN_WARNING("[msg]"))
 
 // This section inspired by goone's bioEffects.
 

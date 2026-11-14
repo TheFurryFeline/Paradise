@@ -5,20 +5,16 @@
 	icon_state = "gib1"
 	basecolor = "#030303"
 	random_icon_states = list("gib1", "gib2", "gib3", "gib4", "gib5", "gib6", "gib7")
-	bloodiness = BLOOD_AMOUNT_PER_DECAL
-	mergeable_decal = FALSE
 
 /obj/effect/decal/cleanable/blood/gibs/robot/can_bloodcrawl_in()
 	return FALSE
 
 /obj/effect/decal/cleanable/blood/gibs/robot/update_icon()
 	color = "#FFFFFF"
+	. = ..(NONE)
 
 /obj/effect/decal/cleanable/blood/gibs/robot/dry()	//pieces of robots do not dry up like
 	return
-
-/obj/effect/decal/cleanable/blood/gibs/robot/can_bloodcrawl_in()
-	return FALSE
 
 /obj/effect/decal/cleanable/blood/gibs/robot/streak(list/directions)
 	spawn(0)
@@ -55,6 +51,12 @@
 /obj/effect/decal/cleanable/blood/oil/dry()
 	return
 
+/obj/effect/decal/cleanable/blood/oil/cooking
+	name = "cooking oil"
+	desc = "It's yellow and greasy. You should dump this down the sink while it's still hot."
+	basecolor = "#fbba16"
+	bloodiness = 0
+
 /obj/effect/decal/cleanable/blood/oil/streak
 	random_icon_states = list("mgibbl1", "mgibbl2", "mgibbl3", "mgibbl4", "mgibbl5")
-	amount = 2
+	cleanable_amount = 2

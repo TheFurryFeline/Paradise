@@ -1,20 +1,23 @@
-import { Table } from './Table';
-import { pureComponentHooks } from 'common/react';
+/**
+ * @file
+ * @copyright 2020 Aleksej Komarov
+ * @license MIT
+ */
 
-export const Grid = props => {
+import { Table } from 'tgui-core/components';
+
+/** @deprecated */
+export const Grid = (props) => {
   const { children, ...rest } = props;
   return (
     <Table {...rest}>
-      <Table.Row>
-        {children}
-      </Table.Row>
+      <Table.Row>{children}</Table.Row>
     </Table>
   );
 };
 
-Grid.defaultHooks = pureComponentHooks;
-
-export const GridColumn = props => {
+/** @deprecated */
+export const GridColumn = (props) => {
   const { size = 1, style, ...rest } = props;
   return (
     <Table.Cell
@@ -22,10 +25,9 @@ export const GridColumn = props => {
         width: size + '%',
         ...style,
       }}
-      {...rest} />
+      {...rest}
+    />
   );
 };
-
-Grid.defaultHooks = pureComponentHooks;
 
 Grid.Column = GridColumn;

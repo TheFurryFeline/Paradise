@@ -9,7 +9,7 @@
 	. = ..()
 	blacklisted_turfs = typecacheof(list(/turf/simulated/wall, /turf/simulated/mineral))
 	whitelisted_turfs = list()
-	banned_areas = typecacheof(/area/shuttle)
+	banned_areas = typecacheof(list(/area/shuttle, /area/holodeck/alphadeck))
 
 /datum/map_template/shelter/proc/check_deploy(turf/deploy_location)
 	var/affected = get_affected_turfs(deploy_location, centered=TRUE)
@@ -24,7 +24,7 @@
 			return SHELTER_DEPLOY_BAD_TURFS
 
 		for(var/obj/O in T)
-			if(O.density && O.anchored)
+			if(O.density && O.anchored && !istype(O, /obj/structure/flora/ash)) // ignore large rocks
 				return SHELTER_DEPLOY_ANCHORED_OBJECTS
 	return SHELTER_DEPLOY_ALLOWED
 

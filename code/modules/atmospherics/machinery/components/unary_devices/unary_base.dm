@@ -1,16 +1,19 @@
 /obj/machinery/atmospherics/unary
-	dir = SOUTH
 	initialize_directions = SOUTH
 	layer = TURF_LAYER+0.1
-	var/id_tag
+	/// The current air contents of this device
 	var/datum/gas_mixture/air_contents
-
+	/// Our one pipe node (we're unary)
 	var/obj/machinery/atmospherics/node
-
+	/// The pipenet we are plugged into
 	var/datum/pipeline/parent
+	/// The tile MILLA is watching for us, see watched_tile_value()
+	var/turf/watched_turf
+	/// Where that tile's values start in SSair.watched_tiles, minus one
+	var/watched_offset
 
-/obj/machinery/atmospherics/unary/New()
-	..()
+/obj/machinery/atmospherics/unary/Initialize(mapload)
+	. = ..()
 	initialize_directions = dir
 	air_contents = new
 	air_contents.volume = 200
@@ -20,7 +23,28 @@
 		node.disconnect(src)
 		node = null
 		nullifyPipenet(parent)
+	if(!isnull(watched_offset))
+		SSair.unwatch_tile(watched_offset)
+		watched_offset = null
+	watched_turf = null
 	return ..()
+
+/// One of our tile's values from SSair.watched_tiles, like MILLA_WATCHED_PRESSURE. Null when it can't stand in for reading the tile's air.
+/obj/machinery/atmospherics/unary/proc/watched_tile_value(turf/T, index)
+	if(watched_turf != T)
+		// First time here, or we got moved (shuttles)
+		if(!isnull(watched_offset))
+			SSair.unwatch_tile(watched_offset)
+		watched_turf = T
+		watched_offset = SSair.watch_tile(T)
+		return null
+	// Something already read or changed this tile's air this tick, so a normal read would give its copy and not MILLA's.
+	if(T.bound_air && T.bound_air.lastread >= SSair.milla_tick)
+		return null
+	// Only fetched while atmos machinery is processing
+	if(isnull(SSair.watched_tiles))
+		return null
+	return SSair.watched_tiles[watched_offset + index]
 
 /obj/machinery/atmospherics/unary/atmos_init()
 	..()
@@ -49,6 +73,13 @@
 			node.addMember(src)
 		build_network()
 		. = 1
+
+/obj/machinery/atmospherics/unary/update_pipe_image()
+	. = ..()
+	if(parent)
+		for(var/mob/crawler in parent.crawlers)
+			var/mob/living/current_crawler = crawler
+			current_crawler.update_pipe_vision(src)
 
 /obj/machinery/atmospherics/unary/build_network(remove_deferral = FALSE)
 	if(!parent)
@@ -83,23 +114,21 @@
 /obj/machinery/atmospherics/unary/returnPipenet()
 	return parent
 
+/obj/machinery/atmospherics/unary/get_machinery_pipelines()
+	return parent
+
 /obj/machinery/atmospherics/unary/replacePipenet(datum/pipeline/Old, datum/pipeline/New)
 	if(Old == parent)
 		parent = New
 
-/obj/machinery/atmospherics/unary/unsafe_pressure_release(mob/user, pressures)
+/obj/machinery/atmospherics/unary/unsafe_pressure_release(mob/user, pressure)
 	..()
 
 	var/turf/T = get_turf(src)
-	if(T)
-		//Remove the gas from air_contents and assume it
-		var/datum/gas_mixture/environment = T.return_air()
-		var/lost = pressures*environment.volume/(air_contents.temperature * R_IDEAL_GAS_EQUATION)
+	if(!T)
+		return
 
-		var/datum/gas_mixture/to_release = air_contents.remove(lost)
-		T.assume_air(to_release)
-		air_update_turf(1)
+	var/lost = pressure * CELL_VOLUME / (air_contents.temperature() * R_IDEAL_GAS_EQUATION)
 
-/obj/machinery/atmospherics/unary/process_atmos()
-	..()
-	return parent
+	var/datum/gas_mixture/to_release = air_contents.remove(lost)
+	T.blind_release_air(to_release)

@@ -5,7 +5,7 @@
 	fire_sound_text = "thwock"
 
 	var/obj/item/to_launch
-	var/list/valid_projectile_type
+	var/obj/item/valid_projectile_type
 	var/max_capacity = 1
 	var/list/loaded_projectiles = list()
 
@@ -25,42 +25,50 @@
 	return
 
 /obj/item/gun/throw/proc/get_ammocount(include_loaded = 1)
-	var/count = loaded_projectiles.len
+	var/count = length(loaded_projectiles)
 	if(include_loaded && to_launch)
 		count++
 	return count
 
 /obj/item/gun/throw/examine(mob/user)
 	. = ..()
-	. += "<span class='notice'>It is [to_launch ? "loaded with \a [to_launch]" : "not loaded"].</span>"
+	. += SPAN_NOTICE("It is [to_launch ? "loaded with \a [to_launch]" : "not loaded"].")
 	. += notify_ammo_count()
 
 /obj/item/gun/throw/Destroy()
 	QDEL_NULL(to_launch)
-	QDEL_LIST(loaded_projectiles)
+	QDEL_LIST_CONTENTS(loaded_projectiles)
 	loaded_projectiles = null
 	return ..()
 
-/obj/item/gun/throw/update_icon()
+/obj/item/gun/throw/update_icon_state()
 	return
 
-/obj/item/gun/throw/attackby(obj/item/I, mob/user, params)
-	if(istype(I, valid_projectile_type) && !(I.flags & NODROP))
-		if(get_ammocount() < max_capacity)
-			user.drop_item()
-			I.forceMove(src)
-			loaded_projectiles += I
-			to_chat(user, "<span class='notice'>You load [I] into [src].</span>")
-			if(!to_launch)
-				process_chamber()
-			to_chat(user, notify_ammo_count())
-		else
-			to_chat(user, "<span class='warning'>[src] cannot hold any more projectiles.</span>")
-	else
-		to_chat(user, "<span class='warning'>You cannot load [I] into [src]!</span>")
+/obj/item/gun/throw/update_overlays()
+	return list()
+
+/obj/item/gun/throw/item_interaction(mob/living/user, obj/item/used, list/modifiers)
+	if(!istype(used, valid_projectile_type))
+		return ..()
+
+	if(get_ammocount() >= max_capacity)
+		to_chat(user, SPAN_WARNING("[src] cannot hold any more projectiles!"))
+		return ITEM_INTERACT_COMPLETE
+
+
+	if(!user.transfer_item_to(used, src))
+		to_chat(user, SPAN_WARNING("[used] is stuck to your hand!"))
+		return ITEM_INTERACT_COMPLETE
+
+	loaded_projectiles += used
+	to_chat(user, SPAN_NOTICE("You load [used] into [src]."))
+	if(!to_launch)
+		process_chamber()
+	to_chat(user, notify_ammo_count())
+	return ITEM_INTERACT_COMPLETE
 
 /obj/item/gun/throw/process_chamber()
-	if(!to_launch && loaded_projectiles.len)
+	if(!to_launch && length(loaded_projectiles))
 		to_launch = loaded_projectiles[1]
 		loaded_projectiles -= to_launch
 	return

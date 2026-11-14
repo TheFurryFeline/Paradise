@@ -1,9 +1,10 @@
 /mob/living/carbon/alien/humanoid/sentinel
 	name = "alien sentinel"
 	caste = "s"
-	maxHealth = 150
-	health = 150
+	maxHealth = 175
+	health = 175
 	icon_state = "aliens_s"
+	surgery_container = /datum/xenobiology_surgery_container/alien/sentinel
 
 /mob/living/carbon/alien/humanoid/sentinel/large
 	name = "alien praetorian"
@@ -12,19 +13,12 @@
 	pixel_x = -16
 	maxHealth = 200
 	health = 200
-	large = 1
-
-/mob/living/carbon/alien/humanoid/sentinel/praetorian
-	name = "alien praetorian"
-	maxHealth = 200
-	health = 200
-	large = 1
 
 /mob/living/carbon/alien/humanoid/sentinel/large/update_icons()
 	overlays.Cut()
 	if(stat == DEAD)
 		icon_state = "prat_dead"
-	else if(stat == UNCONSCIOUS || lying || resting)
+	else if(stat == UNCONSCIOUS || IS_HORIZONTAL(src))
 		icon_state = "prat_sleep"
 	else
 		icon_state = "prat_s"
@@ -32,32 +26,20 @@
 	for(var/image/I in overlays_standing)
 		overlays += I
 
-/mob/living/carbon/alien/humanoid/sentinel/New()
-	if(name == "alien sentinel")
-		name = text("alien sentinel ([rand(1, 1000)])")
+/mob/living/carbon/alien/humanoid/sentinel/Initialize(mapload)
+	. = ..()
+	name = "alien sentinel ([rand(1, 1000)])"
 	real_name = name
-	alien_organs += new /obj/item/organ/internal/xenos/plasmavessel
-	alien_organs += new /obj/item/organ/internal/xenos/acidgland
-	alien_organs += new /obj/item/organ/internal/xenos/neurotoxin
-	..()
 
-/*
-/mob/living/carbon/alien/humanoid/sentinel/verb/evolve() // -- TLE
-	set name = "Evolve (250)"
-	set desc = "Become a Praetorian, Royal Guard to the Queen."
-	set category = "Alien"
+/mob/living/carbon/alien/humenoid/sentinel/event_cost()
+	. = list()
+	if(is_station_level((get_turf(src)).z))
+		return list(ASSIGNMENT_SECURITY = 0.5, ASSIGNMENT_CREW = 3, ASSIGNMENT_MEDICAL = 0.2)
 
-	if(powerc(250))
-		adjustToxLoss(-250)
-		to_chat(src, "<span class=notice'>You begin to evolve!</span>")
-		for(var/mob/O in viewers(src, null))
-			O.show_message(text("<span class='alertalien'>[src] begins to twist and contort!</span>"), 1)
-		var/mob/living/carbon/alien/humanoid/sentinel/praetorian/new_xeno = new(loc)
-		if(mind)
-			mind.transfer_to(new_xeno)
-		else
-			new_xeno.key = key
-		new_xeno.mind.name = new_xeno.name
-		qdel(src)
-	return
-*/
+/mob/living/carbon/alien/humanoid/sentinel/get_caste_organs()
+	. = ..()
+	. += list(
+		/obj/item/organ/internal/alien/plasmavessel,
+		/obj/item/organ/internal/alien/acidgland,
+		/obj/item/organ/internal/alien/neurotoxin,
+	)

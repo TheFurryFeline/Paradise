@@ -7,7 +7,7 @@
 */
 
 /mob/living/silicon/robot/ClickOn(atom/A, params)
-	if(client.click_intercept)
+	if(client?.click_intercept)
 		client.click_intercept.InterceptClickOn(src, params, A)
 		return
 
@@ -17,7 +17,7 @@
 
 	if(is_ventcrawling(src)) // To stop drones interacting with anything while ventcrawling
 		return
-	if(stat == DEAD)
+	if(stat == DEAD || lockcharge || IsWeakened() || IsStunned() || IsParalyzed() || low_power_mode)
 		return
 
 	var/list/modifiers = params2list(params)
@@ -29,6 +29,9 @@
 		return
 	if(modifiers["middle"] && modifiers["ctrl"])
 		CtrlMiddleClickOn(A)
+		return
+	if(modifiers["shift"] && modifiers["middle"])
+		ShiftMiddleClickOn(A)
 		return
 	if(modifiers["middle"])
 		MiddleClickOn(A)
@@ -46,6 +49,9 @@
 	if(incapacitated())
 		return
 
+	if(HAS_TRAIT(src, TRAIT_HANDS_BLOCKED))
+		return
+
 	if(next_move >= world.time)
 		return
 
@@ -57,7 +63,7 @@
 			if(is_component_functioning("camera"))
 				aiCamera.captureimage(A, usr)
 			else
-				to_chat(src, "<span class='userdanger'>Your camera isn't functional.</span>")
+				to_chat(src, SPAN_USERDANGER("Your camera isn't functional."))
 			return
 
 	/*
@@ -75,12 +81,12 @@
 		A.attack_robot(src)
 		return
 
-	// buckled cannot prevent machine interlinking but stops arm movement
-	if( buckled )
-		return
-
 	if(W == A)
-		W.attack_self(src)
+		if(W.new_attack_chain)
+			W.activate_self(src)
+		else
+			W.attack_self__legacy__attackchain(src)
+
 		return
 
 	// cyborgs are prohibited from using storage items so we can I think safely remove (A.loc in contents)
@@ -92,13 +98,16 @@
 		return
 
 	// cyborgs are prohibited from using storage items so we can I think safely remove (A.loc && isturf(A.loc.loc))
-	if(isturf(A) || isturf(A.loc))
-		if(A.Adjacent(src)) // see adjacent.dm
-			W.melee_attack_chain(src, A, params)
-			return
+	if(can_reach(A, W))
+		W.melee_attack_chain(src, A, params)
+	else
+		if(W.new_attack_chain)
+			A.base_ranged_item_interaction(src, W, params)
 		else
-			W.afterattack(A, src, 0, params)
-			return
+			W.afterattack__legacy__attackchain(A, src, 0, params)
+	return
+
+/mob/living/silicon/robot/MiddleShiftControlClickOn(atom/A)
 	return
 
 //Ctrl+Middle click cycles through modules
@@ -108,7 +117,7 @@
 
 //Middle click points
 /mob/living/silicon/robot/MiddleClickOn(atom/A)
-	if(istype(src, /mob/living/silicon/robot/drone))
+	if(isdrone(src))
 		// Drones cannot point.
 		return
 	pointed(A)
@@ -118,15 +127,21 @@
 // for non-doors/apcs
 /mob/living/silicon/robot/ShiftClickOn(atom/A)
 	A.BorgShiftClick(src)
+
 /mob/living/silicon/robot/CtrlClickOn(atom/A)
 	A.BorgCtrlClick(src)
+
 /mob/living/silicon/robot/AltClickOn(atom/A)
 	A.BorgAltClick(src)
+
 /mob/living/silicon/robot/CtrlShiftClickOn(atom/A)
 	A.BorgCtrlShiftClick(src)
+
 /mob/living/silicon/robot/AltShiftClickOn(atom/A)
 	A.BorgAltShiftClick(src)
 
+/mob/living/silicon/robot/ShiftMiddleClickOn(atom/A)
+	A.BorgShiftMiddleClick(src)
 
 /atom/proc/BorgShiftClick(mob/user)
 	if(user.client && user.client.eye == user)
@@ -145,9 +160,11 @@
 		user.examinate(src)
 	return
 
-/atom/proc/BorgAltShiftClick()
-	return
+/atom/proc/BorgAltShiftClick(mob/living/silicon/robot/user)
+	AltShiftClick(user)
 
+/atom/proc/BorgShiftMiddleClick()
+	return
 
 // AIRLOCKS
 
@@ -163,21 +180,13 @@
 /obj/machinery/door/airlock/BorgAltShiftClick(mob/living/silicon/robot/user)  // Enables emergency override on doors! Forwards to AI code.
 	AIAltShiftClick(user)
 
+/obj/machinery/door/airlock/BorgShiftMiddleClick(mob/living/silicon/robot/user)  //Toggles door timing. Forwards to AI code.
+	AIShiftMiddleClick(user)
 
 // APC
 
 /obj/machinery/power/apc/BorgCtrlClick(mob/living/silicon/robot/user) // turns off/on APCs. Forwards to AI code.
 	AICtrlClick(user)
-
-
-// AI SLIPPER
-
-/obj/machinery/ai_slipper/BorgCtrlClick(mob/living/silicon/robot/user) //Turns liquid dispenser on or off
-	ToggleOn()
-
-/obj/machinery/ai_slipper/BorgAltClick(mob/living/silicon/robot/user) //Dispenses liquid if on
-	Activate()
-
 
 // TURRETCONTROL
 

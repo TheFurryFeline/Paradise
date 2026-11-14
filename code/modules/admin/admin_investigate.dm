@@ -1,61 +1,24 @@
-//By Carnwennan
-
-//This system was made as an alternative to all the in-game lists and variables used to log stuff in-game.
-//lists and variables are great. However, they have several major flaws:
-//Firstly, they use memory. TGstation has one of the highest memory usage of all the ss13 branches.
-//Secondly, they are usually stored in an object. This means that they aren't centralised. It also means that
-//the data is lost when the object is deleted! This is especially annoying for things like the singulo engine!
-#define INVESTIGATE_DIR "data/investigate/"
-
-//SYSTEM
-/proc/investigate_subject2file(subject)
-	return file("[INVESTIGATE_DIR][subject].html")
-
-/proc/investigate_reset()
-	if(fdel(INVESTIGATE_DIR))	return 1
-	return 0
+// Atom investigate stuff
+// All of this is stored in a global list because its faster than file IO and we arent ram constrained like TG -aa07
+GLOBAL_LIST_EMPTY(investigate_log_wrapper)
+GLOBAL_PROTECT(investigate_log_wrapper)
 
 /atom/proc/investigate_log(message, subject)
-	if(!message)	return
-	var/F = investigate_subject2file(subject)
-	if(!F)	return
-	GLOB.investigate_log_subjects |= subject
-	F << "<small>[time_stamp()] \ref[src] ([x],[y],[z])</small> || [src] [message]<br>"
-
-/proc/log_investigate(message, subject)
-	if(!message) return
-	var/F = investigate_subject2file(subject)
-	if(!F) return
-	GLOB.investigate_log_subjects |= subject
-	F << "<small>[time_stamp()] || [message]<br>"
-
-//ADMINVERBS
-/client/proc/investigate_show( subject in GLOB.investigate_log_subjects )
-	set name = "Investigate"
-	set category = "Admin"
-	if(!check_rights(R_ADMIN))
+	if(!message || !subject)
 		return
-	switch(subject)
-		if("notes")
-			show_note()
 
-		if("watchlist")
-			watchlist_show()
+	if(!(subject in GLOB.investigate_log_wrapper))
+		GLOB.investigate_log_wrapper[subject] = list()
 
-		if("hrefs")				//persistant logs and stuff
-			if(config && config.log_hrefs)
-				if(GLOB.world_href_log)
-					src << browse(file(GLOB.world_href_log), "window=investigate[subject];size=800x300")
-				else
-					to_chat(src, "<font color='red'>Error: admin_investigate: No href logfile found.</font>")
-					return
-			else
-				to_chat(src, "<font color='red'>Error: admin_investigate: Href Logging is not on.</font>")
-				return
+	GLOB.investigate_log_wrapper[subject] += "<small>[time_stamp()] [UID()] [ADMIN_COORDJMP(src)] </small> || [src] [message]"
 
-		else //general one-round-only stuff
-			var/F = investigate_subject2file(subject)
-			if(!F)
-				to_chat(src, "<font color='red'>Error: admin_investigate: [INVESTIGATE_DIR][subject] is an invalid path or cannot be accessed.</font>")
-				return
-			src << browse(F,"window=investigate[subject];size=800x300")
+USER_VERB(investigate_show, R_ADMIN, "Investigate Round Objects", "View Investigation panel.", VERB_CATEGORY_ADMIN, subject in GLOB.investigate_log_wrapper)
+	// Should never happen
+	if(!(subject in GLOB.investigate_log_wrapper))
+		return
+
+	var/list/entries = GLOB.investigate_log_wrapper[subject]
+
+	var/datum/browser/B = new(client, "investigatelog", "Investigate ([subject])", 800, 400)
+	B.set_content(entries.Join("<br>"))
+	B.open()

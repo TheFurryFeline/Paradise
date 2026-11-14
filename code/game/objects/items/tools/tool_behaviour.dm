@@ -1,6 +1,8 @@
-// Called when a mob tries to use the item as a tool.
-// Handles most checks.
-/obj/item/proc/use_tool(atom/target, mob/living/user, delay, amount=0, volume=0, datum/callback/extra_checks)
+/**
+ * Called when a mob tries to use the item as a tool.
+ * Handles most checks.
+*/
+/obj/item/proc/use_tool(atom/target, mob/living/user, delay, amount=0, volume=0, datum/callback/extra_checks, do_after_once = FALSE)
 	// No delay means there is no start message, and no reason to call tool_start_check before use_tool.
 	// Run the start check here so we wouldn't have to call it manually.
 	target.add_fingerprint(user)
@@ -13,15 +15,19 @@
 
 	if(delay)
 		// Create a callback with checks that would be called every tick by do_after.
-		var/datum/callback/tool_check = CALLBACK(src, .proc/tool_check_callback, user, target, amount, extra_checks)
+		var/datum/callback/tool_check = CALLBACK(src, PROC_REF(tool_check_callback), user, target, amount, extra_checks)
 
 		if(ismob(target))
 			if(!do_mob(user, target, delay, extra_checks = list(tool_check)))
 				return
 
-		else
+		else if(!do_after_once)
 			if(!do_after(user, delay, target=target, extra_checks = list(tool_check)))
 				return
+		else
+			if(!do_after_once(user, delay, target=target, extra_checks = list(tool_check)))
+				return
+
 	else
 		// Invoke the extra checks once, just in case.
 		if(extra_checks && !extra_checks.Invoke())
@@ -35,6 +41,17 @@
 	// but only if the delay between the beginning and the end is not too small
 	if(delay >= MIN_TOOL_SOUND_DELAY)
 		play_tool_sound(target, volume)
+
+	// If it has a bit, wear and tear
+	for(var/obj/item/smithed_item/tool_bit/bit in attached_bits)
+		bit.damage_bit()
+
+	// If it has a chance to fail, see if it failed
+	if(bit_failure_rate)
+		if(prob(bit_failure_rate))
+			return
+
+
 	return TRUE
 
 // Called before use_tool if there is a delay, or by use_tool if there isn't.
@@ -43,7 +60,7 @@
 	return tool_use_check(user, amount)
 
 // A check called by tool_start_check once, and by use_tool on every tick of delay.
-/obj/item/proc/tool_use_check(mob/living/user, amount)
+/obj/item/proc/tool_use_check(mob/living/user, amount, silent = FALSE)
 	return !amount
 
 /obj/item/proc/play_tool_sound(atom/target, volume = tool_volume)
@@ -57,4 +74,8 @@
 
 // Used in a callback that is passed by use_tool into do_after call. Do not override, do not call manually.
 /obj/item/proc/tool_check_callback(mob/living/user, atom/target, amount, datum/callback/extra_checks)
-	return tool_use_check(user, amount) && (extra_checks && !extra_checks.Invoke())
+	if(!tool_use_check(user, amount))
+		return TRUE
+	if(extra_checks && !extra_checks.Invoke())
+		return TRUE
+	return FALSE

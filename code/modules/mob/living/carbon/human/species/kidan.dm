@@ -3,16 +3,22 @@
 	name_plural = "Kidan"
 	icobase = 'icons/mob/human_races/r_kidan.dmi'
 	language = "Chittin"
+	meat_type = /obj/item/food/meat/human
+
+	blurb = "The Kidan are ant-like beings possessing a hardened exoskeleton and strict adherence to social castes. \
+	They originate from the planet Aurum — a barren bombarded world that suffered after the war with the Solar-Central Compact, having lost decisively after the Battle of Argos.<br/><br/> \
+	They are relatively minor players in galactic affairs and presently suffer heavy sanctions from the SCC, \
+	though they are tentatively re-establishing relations with other galactic powers, even after the crumbling of their once powerful empire."
 	unarmed_type = /datum/unarmed_attack/claws
 
 	brute_mod = 0.8
 	hunger_drain = 0.15
 	tox_mod = 1.7
 
-	species_traits = list(IS_WHITELISTED, NO_HAIR)
+	species_traits = list(NO_HAIR)
 	inherent_biotypes = MOB_ORGANIC | MOB_HUMANOID | MOB_BUG
 	clothing_flags = HAS_UNDERWEAR | HAS_UNDERSHIRT | HAS_SOCKS
-	bodyflags = HAS_HEAD_ACCESSORY | HAS_HEAD_MARKINGS | HAS_BODY_MARKINGS
+	bodyflags = HAS_HEAD_ACCESSORY | HAS_HEAD_MARKINGS | HAS_BODY_MARKINGS | HAS_BODYACC_COLOR | SHAVED
 	eyes = "kidan_eyes_s"
 	dietflags = DIET_HERB
 	flesh_color = "#ba7814"
@@ -22,6 +28,10 @@
 	default_headacc = "Normal Antennae"
 	butt_sprite = "kidan"
 
+	male_scream_sound = 'sound/voice/scream_kidan.ogg'
+	female_scream_sound = 'sound/voice/scream_kidan.ogg'
+
+	meat_type = /obj/item/food/meat/human
 	has_organ = list(
 		"heart" =    /obj/item/organ/internal/heart/kidan,
 		"lungs" =    /obj/item/organ/internal/lungs/kidan,
@@ -33,7 +43,7 @@
 		"lantern" =  /obj/item/organ/internal/lantern
 		)
 
-	allowed_consumed_mobs = list(/mob/living/simple_animal/diona)
+	allowed_consumed_mobs = list(/mob/living/basic/diona_nymph, /mob/living/basic/isopod/small)
 
 	suicide_messages = list(
 		"is attempting to bite their antenna off!",
@@ -42,8 +52,40 @@
 		"is cracking their exoskeleton!",
 		"is stabbing themselves with their mandibles!",
 		"is holding their breath!")
+	autohiss_basic_map = list(
+			"z" = list("zz", "zzz", "zzzz"),
+			"v" = list("vv", "vvv", "vvvv")
+		)
+	autohiss_extra_map = list(
+			"s" = list("z", "zs", "zzz", "zzsz")
+		)
+	autohiss_exempt = list("Chittin")
 
+	plushie_type = /obj/item/toy/plushie/kidanplushie
 
-/datum/species/kidan/get_species_runechat_color(mob/living/carbon/human/H)
-	var/obj/item/organ/internal/eyes/E = H.get_int_organ(/obj/item/organ/internal/eyes)
-	return E.eye_color
+/datum/species/kidan/randomize_eye_color()
+	return rand_hex_color()
+
+/datum/species/kidan/randomize_hair_style(datum/robolimb/robohead, species_bald_prob = 40)
+	return ..()
+
+/datum/species/kidan/randomize_head_accessory(prob_to_apply = 60)
+	return ..()
+
+/datum/species/kidan/randomize_head_accessory_color(head_accessory, body_color = null, hair_color = null)
+	if(prob(80))
+		return COLOR_BLACK
+	// color only slightly and rarely
+	return rgb(rand(0, 360), rand(0, 100), rand(5, 20), space = COLORSPACE_HSL)
+
+/datum/species/kidan/randomize_body_markings_color(body_markings, body_color = null, skin_tone = null)
+	if(prob(80))
+		return COLOR_BLACK
+	// color only slightly and rarely
+	return rgb(rand(0, 360), rand(0, 100), rand(5, 20), space = COLORSPACE_HSL)
+
+/datum/species/kidan/randomize_head_markings_color(head_markings, body_color = null)
+	if(prob(80))
+		return COLOR_BLACK
+	// color only slightly and rarely
+	return rgb(rand(0, 360), rand(0, 100), rand(5, 20), space = COLORSPACE_HSL)

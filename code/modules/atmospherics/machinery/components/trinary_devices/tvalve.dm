@@ -6,11 +6,15 @@
 	icon_state = "map_tvalve0"
 
 	name = "manual switching valve"
-	desc = "A pipe valve"
+	desc = "A pipe valve."
 
-	can_unwrench = 1
+	can_unwrench = TRUE
 
 	var/state = TVALVE_STATE_STRAIGHT
+
+/obj/machinery/atmospherics/trinary/tvalve/examine(mob/user)
+	. = ..()
+	. += SPAN_NOTICE("Click this to toggle the mode. The direction with the dot is where the gas will flow to. The gas flows from the opposite side or the one with the uninterrupted line.")
 
 /obj/machinery/atmospherics/trinary/tvalve/bypass
 	icon_state = "map_tvalve1"
@@ -18,11 +22,10 @@
 
 /obj/machinery/atmospherics/trinary/tvalve/flipped
 	icon_state = "map_tvalvem0"
-	flipped = 1
+	flipped = TRUE
 
 /obj/machinery/atmospherics/trinary/tvalve/flipped/bypass
 	icon_state = "map_tvalvem1"
-	flipped = 1
 	state = TVALVE_STATE_SIDE
 
 /obj/machinery/atmospherics/trinary/tvalve/update_icon(animation)
@@ -33,6 +36,7 @@
 		flick("tvalve[flipstate][state][!state]",src)
 	else
 		icon_state = "tvalve[flipstate][state]"
+	..()
 
 /obj/machinery/atmospherics/trinary/tvalve/update_underlays()
 	if(..())
@@ -68,7 +72,7 @@
 	parent3.update = 0
 	parent1.reconcile_air()
 
-	investigate_log("was set to side by [usr ? key_name(usr) : "a remote signal"]", "atmos")
+	investigate_log("was set to side by [usr ? key_name(usr) : "a remote signal"]", INVESTIGATE_ATMOS)
 	return 1
 
 /obj/machinery/atmospherics/trinary/tvalve/proc/go_straight()
@@ -83,7 +87,7 @@
 	parent3.update = 0
 	parent1.reconcile_air()
 
-	investigate_log("was set to straight by [usr ? key_name(usr) : "a remote signal"]", "atmos")
+	investigate_log("was set to straight by [usr ? key_name(usr) : "a remote signal"]", INVESTIGATE_ATMOS)
 	return 1
 
 /obj/machinery/atmospherics/trinary/tvalve/attack_ai(mob/user)
@@ -99,18 +103,13 @@
 	sleep(10)
 	switch_side()
 
-/obj/machinery/atmospherics/trinary/tvalve/digital		// can be controlled by AI
+/// can be controlled by AI
+/obj/machinery/atmospherics/trinary/tvalve/digital
 	name = "digital switching valve"
 	desc = "A digitally controlled valve."
 	icon = 'icons/atmos/digital_tvalve.dmi'
 
 	var/id = null
-
-/obj/machinery/atmospherics/trinary/tvalve/digital/Destroy()
-	if(SSradio)
-		SSradio.remove_object(src, frequency)
-	radio_connection = null
-	return ..()
 
 /obj/machinery/atmospherics/trinary/tvalve/digital/bypass
 	icon_state = "map_tvalve1"
@@ -118,54 +117,34 @@
 
 /obj/machinery/atmospherics/trinary/tvalve/digital/flipped
 	icon_state = "map_tvalvem0"
-	flipped = 1
+	flipped = TRUE
 
 /obj/machinery/atmospherics/trinary/tvalve/digital/flipped/bypass
 	icon_state = "map_tvalvem1"
-	flipped = 1
 	state = TVALVE_STATE_SIDE
 
 /obj/machinery/atmospherics/trinary/tvalve/digital/power_change()
-	var/old_stat = stat
-	..()
-	if(old_stat != stat)
-		update_icon()
+	if(!..())
+		return
+	update_icon()
 
-/obj/machinery/atmospherics/trinary/tvalve/digital/update_icon()
-	..()
-
-	if(!powered())
-		icon_state = "tvalvenopower"
+/obj/machinery/atmospherics/trinary/tvalve/digital/update_icon_state()
+	var/flipstate = ""
+	if(flipped)
+		flipstate = "m"
+	if(!has_power())
+		icon_state = "tvalve[flipstate]nopower"
 
 /obj/machinery/atmospherics/trinary/tvalve/digital/attack_ai(mob/user)
 	return attack_hand(user)
 
 /obj/machinery/atmospherics/trinary/tvalve/digital/attack_hand(mob/user)
-	if(!powered())
+	if(!has_power())
 		return
 	if(!allowed(user) && !user.can_advanced_admin_interact())
-		to_chat(user, "<span class='alert'>Access denied.</span>")
+		to_chat(user, SPAN_ALERT("Access denied."))
 		return
 	..()
-
-/obj/machinery/atmospherics/trinary/tvalve/digital/atmos_init()
-	..()
-	if(frequency)
-		set_frequency(frequency)
-
-/obj/machinery/atmospherics/trinary/tvalve/digital/receive_signal(datum/signal/signal)
-	if(!signal.data["tag"] || (signal.data["tag"] != id))
-		return 0
-
-	switch(signal.data["command"])
-		if("valve_open")
-			go_to_side()
-
-		if("valve_close")
-			go_straight()
-
-		if("valve_toggle")
-			switch_side()
 
 #undef TVALVE_STATE_STRAIGHT
 #undef TVALVE_STATE_SIDE

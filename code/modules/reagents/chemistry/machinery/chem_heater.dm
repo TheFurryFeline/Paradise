@@ -1,22 +1,23 @@
 /obj/machinery/chem_heater
 	name = "chemical heater"
+	desc = "A simple machine that uses a heat exchanger to adjust the temperature of a mixture. Despite the name, it's also capable of cooling. This feature is unpopular with hipsters, as they preferred the chemicals before they were cool."
 	density = TRUE
 	anchored = TRUE
 	icon = 'icons/obj/chemical.dmi'
 	icon_state = "mixer0b"
-	use_power = IDLE_POWER_USE
-	idle_power_usage = 40
+	idle_power_consumption = 40
 	resistance_flags = FIRE_PROOF|ACID_PROOF
+
 	var/obj/item/reagent_containers/beaker = null
 	var/desired_temp = T0C
 	var/on = FALSE
 	/// Whether this should auto-eject the beaker once done heating/cooling.
 	var/auto_eject = FALSE
 	/// The higher this number, the faster reagents will heat/cool.
-	var/speed_increase = 0
+	var/speed_increase = 40
 
-/obj/machinery/chem_heater/New()
-	..()
+/obj/machinery/chem_heater/Initialize(mapload)
+	. = ..()
 	component_parts = list()
 	component_parts += new /obj/item/circuitboard/chem_heater(null)
 	component_parts += new /obj/item/stock_parts/micro_laser(null)
@@ -26,7 +27,14 @@
 /obj/machinery/chem_heater/RefreshParts()
 	speed_increase = initial(speed_increase)
 	for(var/obj/item/stock_parts/micro_laser/M in component_parts)
-		speed_increase += 5 * (M.rating - 1)
+		speed_increase += 20 * (M.rating - 1)
+
+/obj/machinery/chem_heater/AltClick(mob/user, modifiers)
+	if(!Adjacent(user))
+		return
+	if(HAS_TRAIT(user, TRAIT_HANDS_BLOCKED))
+		return
+	eject_beaker(user)
 
 /obj/machinery/chem_heater/process()
 	..()
@@ -37,7 +45,8 @@
 			if(!beaker.reagents.total_volume)
 				on = FALSE
 				return
-			beaker.reagents.temperature_reagents(desired_temp, max(1, 35 - speed_increase))
+			var/sign = SIGN(desired_temp - beaker.reagents.chem_temp)
+			beaker.reagents.adjust_reagent_temp(speed_increase * sign, desired_temp)
 			if(round(beaker.reagents.chem_temp) == round(desired_temp))
 				playsound(loc, 'sound/machines/ding.ogg', 50, 1)
 				on = FALSE
@@ -47,7 +56,7 @@
 /obj/machinery/chem_heater/proc/eject_beaker(mob/user)
 	if(beaker)
 		beaker.forceMove(get_turf(src))
-		if(user && Adjacent(user) && !issilicon(user))
+		if(user && Adjacent(user) && !issilicon(user) && (!user.get_active_hand() || !user.get_inactive_hand()))
 			user.put_in_hands(beaker)
 		beaker = null
 		icon_state = "mixer0b"
@@ -55,30 +64,27 @@
 		SStgui.update_uis(src)
 
 /obj/machinery/chem_heater/power_change()
-	if(powered())
+	if(has_power())
 		stat &= ~NOPOWER
 	else
 		stat |= NOPOWER
 
-/obj/machinery/chem_heater/attackby(obj/item/I, mob/user)
-	if(isrobot(user))
-		return
-
-	if(istype(I, /obj/item/reagent_containers/glass))
+/obj/machinery/chem_heater/item_interaction(mob/living/user, obj/item/used, list/modifiers)
+	if(istype(used, /obj/item/reagent_containers/glass) && user.a_intent != INTENT_HARM)
 		if(beaker)
-			to_chat(user, "<span class='notice'>A beaker is already loaded into the machine.</span>")
-			return
+			to_chat(user, SPAN_NOTICE("A beaker is already loaded into the machine."))
+			return ITEM_INTERACT_COMPLETE
 
-		if(user.drop_item())
-			beaker = I
-			I.forceMove(src)
-			to_chat(user, "<span class='notice'>You add the beaker to the machine!</span>")
-			icon_state = "mixer1b"
-			SStgui.update_uis(src)
-			return
+		if(!user.drop_item())
+			to_chat(user, SPAN_WARNING("[used] is stuck to you!"))
+			return ITEM_INTERACT_COMPLETE
 
-	if(exchange_parts(user, I))
-		return
+		beaker = used
+		used.forceMove(src)
+		to_chat(user, SPAN_NOTICE("You add the beaker to the machine!"))
+		icon_state = "mixer1b"
+		SStgui.update_uis(src)
+		return ITEM_INTERACT_COMPLETE
 
 	return ..()
 
@@ -88,7 +94,7 @@
 
 /obj/machinery/chem_heater/screwdriver_act(mob/user, obj/item/I)
 	. = TRUE
-	default_deconstruction_screwdriver(user, "mixer0b", "mixer0b", I)
+	default_deconstruction_screwdriver(user, "mixer0b", "mixer[beaker ? "1" : "0"]b", I)
 
 /obj/machinery/chem_heater/crowbar_act(mob/user, obj/item/I)
 	if(!panel_open)
@@ -128,13 +134,16 @@
 			return FALSE
 	add_fingerprint(usr)
 
-/obj/machinery/chem_heater/ui_interact(mob/user, ui_key = "main", datum/tgui/ui = null, force_open = FALSE, datum/tgui/master_ui = null, datum/ui_state/state = GLOB.default_state)
+/obj/machinery/chem_heater/ui_state(mob/user)
+	return GLOB.default_state
+
+/obj/machinery/chem_heater/ui_interact(mob/user, datum/tgui/ui = null)
 	if(user.stat || user.restrained())
 		return
 
-	ui = SStgui.try_update_ui(user, src, ui_key, ui, force_open)
+	ui = SStgui.try_update_ui(user, src, ui)
 	if(!ui)
-		ui = new(user, src, ui_key, "ChemHeater", "Chemical Heater", 350, 270, master_ui, state)
+		ui = new(user, src, "ChemHeater", "Chemical Heater")
 		ui.open()
 
 /obj/machinery/chem_heater/ui_data(mob/user)

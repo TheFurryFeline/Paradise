@@ -1,12 +1,24 @@
 
 /datum/sprite_accessory/head_accessory/ipc
-    icon = 'icons/mob/sprite_accessories/ipc/ipc_head_accessories.dmi'
-    species_allowed = list("Machine")
-    over_hair = 1
+	icon = 'icons/mob/sprite_accessories/ipc/ipc_head_accessories.dmi'
+	species_allowed = list("Machine")
+	over_hair = 1
 
 /datum/sprite_accessory/head_accessory/ipc/ipc_antennae
 	name = "Antennae"
 	icon_state = "antennae"
+
+/datum/sprite_accessory/head_accessory/ipc/ipc_winged_antennae
+	name = "Winged Antennae"
+	icon_state = "wings"
+
+/datum/sprite_accessory/head_accessory/ipc/ipc_horns
+	name = "Horns"
+	icon_state = "horns"
+
+/datum/sprite_accessory/head_accessory/ipc/ipc_ring
+	name = "Orbital Ring"
+	icon_state = "ring"
 
 /datum/sprite_accessory/head_accessory/ipc/ipc_tv_antennae
 	name = "T.V. Antennae"

@@ -1,65 +1,66 @@
-/obj/effect/spawner/random_barrier
-	name = "random tile"
-	var/list/result = list(
-	/turf/simulated/floor/plasteel = 1,
-	/turf/simulated/wall = 1,
-	/obj/structure/falsewall = 1,
-	/obj/effect/spawner/window/reinforced = 1,
-	/obj/machinery/door/airlock = 1,
-	/obj/machinery/door/airlock/welded = 1,
-	/obj/structure/barricade/wooden = 1)
+/obj/effect/spawner/random/barrier
+	name = "random barrier spawner"
+	icon_state = "barrier"
+	loot = list(
+		/obj/effect/spawner/window/reinforced,
+		/obj/machinery/door/airlock/spawner,
+		/obj/machinery/door/airlock/spawner/welded,
+		/obj/structure/barricade/wooden,
+		/obj/structure/falsewall,
+		/turf/simulated/wall,
+	)
 
-// This needs to come before the initialization wave because
-// the thing it creates might need to be initialized too
-/obj/effect/spawner/random_barrier/Initialize()
-	. = ..()
-	var/turf/T = get_turf(src)
-	if(!T)
-		log_runtime(EXCEPTION("Barrier spawner placed in nullspace!"), src)
-		return
-	var/thing_to_place = pickweight(result)
-	if(ispath(thing_to_place, /turf))
-		T.ChangeTurf(thing_to_place)
-	else
-		new thing_to_place(T)
-	qdel(src)
+/obj/effect/spawner/random/barrier/temporary
+	name = "random temporary barrier spawner"
+	loot = list(
+		/obj/structure/barricade/wooden,
+		/obj/structure/grille,
+		/obj/structure/grille/broken,
+		/obj/structure/girder,
+		/obj/structure/barricade/security,
+		/obj/structure/barricade/sandbags,
+	)
 
-/obj/effect/spawner/random_barrier/wall_probably
+/obj/effect/spawner/random/barrier/wall_probably
 	name = "probably a wall"
-	result = list(
-	/turf/simulated/wall = 9,
-	/obj/structure/falsewall = 1)
+	icon_state = "wall"
+	loot = list(
+		/obj/structure/falsewall = 1,
+		/turf/simulated/wall = 9,
+	)
 
-/obj/effect/spawner/random_barrier/floor_probably
-	name = "probably a floor"
-	result = list(
-	/turf/simulated/floor/plasteel = 3,
-	/turf/simulated/wall = 1)
-
-/obj/effect/spawner/random_barrier/obstruction
+/obj/effect/spawner/random/barrier/obstruction
 	name = "obstruction"
-	result = list(
-	/turf/simulated/wall = 1,
-	/obj/structure/falsewall = 1,
-	/obj/structure/barricade/wooden = 1,
-	/obj/machinery/door/airlock/welded = 1)
+	loot = list(
+		/obj/machinery/door/airlock/spawner/welded,
+		/obj/structure/barricade/wooden,
+		/obj/structure/falsewall,
+		/turf/simulated/wall,
+	)
 
-/obj/effect/spawner/random_barrier/possibly_welded_airlock // these have no access restrictions, so for internal maintenance only
+/// these have no access restrictions, so for internal maintenance only
+/obj/effect/spawner/random/barrier/possibly_welded_airlock
 	name = "possibly welded airlock"
-	result = list(
-	/obj/machinery/door/airlock = 3,
-	/obj/machinery/door/airlock/welded = 1)
+	icon_state = "airlock"
+	loot = list(
+		/obj/machinery/door/airlock/spawner = 3,
+		/obj/machinery/door/airlock/spawner/welded = 1,
+	)
 
-/obj/effect/spawner/random_spawners/grille_often
+/obj/effect/spawner/random/barrier/grille_often
 	name = "grille often"
-	result = list(
-	/obj/structure/grille = 8,
-	/obj/structure/grille/broken = 4,
-	/turf/simulated/floor/plating = 2)
+	icon_state = "grille"
+	spawn_loot_chance = 85
+	loot = list(
+		/obj/structure/grille = 2,
+		/obj/structure/grille/broken = 1,
+	)
 
-/obj/effect/spawner/random_spawners/grille_maybe
+/obj/effect/spawner/random/barrier/grille_maybe
 	name = "grille maybe"
-	result = list(
-	/obj/structure/grille = 2,
-	/obj/structure/grille/broken = 2,
-	/turf/simulated/floor/plating = 5)
+	icon_state = "grille"
+	spawn_loot_chance = 45
+	loot = list(
+		/obj/structure/grille,
+		/obj/structure/grille/broken,
+	)

@@ -41,6 +41,11 @@
 	var/datum/armor/armor
 	///% of hunger rate taken per tick.
 	var/hunger_mod = 1
+	/// Bonus damage added to melee attacks. NOTE: this is additive rather than multiplicative, trying to multiply this will break things.
+	var/melee_bonus = 0
+	/// % drunkenness modifier
+	var/alcohol_mod = 1
+
 
 /datum/physiology/New()
 	armor = new
